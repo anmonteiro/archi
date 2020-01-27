@@ -1,4 +1,4 @@
-{ pkgs ? import ./sources.nix {} }:
+{ pkgs ? import ./sources.nix { inherit ocamlVersion; }, ocamlVersion ? "4_09" }:
 
 let
   inherit (pkgs) lib ocamlPackages;
