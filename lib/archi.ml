@@ -169,6 +169,7 @@ module System = struct
         -> (a, string) result Lwt.t
     =
    fun (System { values; _ } as system) ~dependencies ~f ->
+    let open Component in
     match dependencies with
     | [] ->
       f
@@ -198,7 +199,9 @@ module System = struct
       Toposort.toposort
         ~order
         ~edges:
-          (fun _graph (Component.AnyComponent (Component { dependencies; _ })) ->
+          (fun _graph
+               (Component.AnyComponent
+                 (Component.Component { dependencies; _ })) ->
           Component.fold_left
             ~f:(fun (acc : 'ctx Component.any_component list) itm -> itm :: acc)
             ~init:[]
@@ -214,7 +217,7 @@ module System = struct
       ~f:
         (fun (System { values; components; _ } as system)
              (Component.AnyComponent
-               (Component { start; dependencies; hkey; _ })) ->
+               (Component.Component { start; dependencies; hkey; _ })) ->
         let f = start ctx in
         start_component system ~dependencies ~f >|= fun started_component ->
         let values = Hmap.add hkey started_component values in
@@ -228,7 +231,7 @@ module System = struct
       ~order:`Reverse
       ~f:
         (fun (System { values; components; _ })
-             (Component.AnyComponent (Component { stop; hkey; _ })) ->
+             (Component.AnyComponent (Component.Component { stop; hkey; _ })) ->
         let open Lwt.Infix in
         let v = Hmap.get hkey values in
         stop v >|= fun () ->
