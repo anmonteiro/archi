@@ -13,7 +13,7 @@ TODO, read the [mli](./lib/archi.mli) file for now.
 
 ### Examples
 
-The design of this library is heavily by the [`component`](clojure-component)
+The design of this library is heavily inspired by the [`component`](clojure-component)
 library for Clojure. The terminology is similar, and so is the API.
 
 [clojure-component]: https://github.com/stuartsierra/component
@@ -87,5 +87,5 @@ let () = Lwt_main.run (main ())
 
 Copyright (c) 2020 António Nuno Monteiro
 
-piaf is distributed under the 3-Clause BSD License, see [LICENSE](./LICENSE).
+Archi is distributed under the 3-Clause BSD License, see [LICENSE](./LICENSE).
 
