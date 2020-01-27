@@ -188,7 +188,11 @@ module System = struct
 
   let update_system ~order system ~f =
     let all_components =
-      fold_left ~f:(fun acc (_lbl, itm) -> List.(itm :: acc)) ~init:[] system
+      fold_left
+        ~f:(fun (acc : 'ctx Component.any_component list) (_lbl, itm) ->
+          itm :: acc)
+        ~init:[]
+        system
     in
     let ordered =
       Toposort.toposort
@@ -196,7 +200,7 @@ module System = struct
         ~edges:
           (fun _graph (Component.AnyComponent (Component { dependencies; _ })) ->
           Component.fold_left
-            ~f:(fun acc itm -> List.(itm :: acc))
+            ~f:(fun (acc : 'ctx Component.any_component list) itm -> itm :: acc)
             ~init:[]
             dependencies)
         all_components
