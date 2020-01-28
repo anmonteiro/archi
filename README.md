@@ -20,7 +20,7 @@ library for Clojure. The terminology is similar, and so is the API.
 
 ```ocaml
 open Lwt.Infix
-open Archi
+open Archi_lwt
 
 module Database = struct
   type db = { handle : int }
