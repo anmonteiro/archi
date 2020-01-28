@@ -1,4 +1,4 @@
 (library
  (name archi)
  (public_name archi)
- (libraries hmap lwt))
+ (libraries hmap))

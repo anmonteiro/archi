@@ -29,81 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*)
 
-module Component : sig
-  type ('ctx, 'a) t
+module type IO = Archi_intf.IO
 
-  type (_, _, _) deps =
-    | [] : ('ctx, 'a, 'a) deps
-    | ( :: ) : ('ctx, 'a) t * ('ctx, 'b, 'c) deps -> ('ctx, 'b, 'a -> 'c) deps
+module type S = Archi_intf.S
 
-  val append : ('ctx, 'c) t -> ('ctx, 'a, 'b) deps -> ('ctx, 'a, 'c -> 'b) deps
-
-  val concat : ('ctx, 'b, 'c) deps -> ('ctx, 'a, 'b) deps -> ('ctx, 'a, 'c) deps
-
-  module type COMPONENT = sig
-    type t
-
-    type ctx
-
-    type args
-
-    val name : string option
-
-    val start : ctx -> args
-
-    val stop : t -> unit Lwt.t
-  end
-
-  (** Creating components *)
-
-  val component
-    :  ?name:string
-    -> start:('ctx -> ('a, string) result Lwt.t)
-    -> stop:('a -> unit Lwt.t)
-    -> ('ctx, 'a) t
-
-  val of_module
-    :  (module COMPONENT
-          with type t = 'a
-           and type args = ('a, string) result Lwt.t
-           and type ctx = 'ctx)
-    -> ('ctx, 'a) t
-
-  val using
-    :  ?name:string
-    -> start:('ctx -> 'args)
-    -> stop:('a -> unit Lwt.t)
-    -> dependencies:('ctx, ('a, string) result Lwt.t, 'args) deps
-    -> ('ctx, 'a) t
-
-  val using_module
-    :  (module COMPONENT
-          with type args = 'args
-           and type t = 'a
-           and type ctx = 'ctx)
-    -> dependencies:('ctx, ('a, string) result Lwt.t, 'args) deps
-    -> ('ctx, 'a) t
-end
-
-(** Systems *)
-
-module System : sig
-  type (_, _, _) deps =
-    | [] : ('ctx, 'a, 'a) deps
-    | ( :: ) :
-        (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) deps
-        -> ('ctx, 'b, 'a -> 'c) deps
-
-  type ('ctx, _) t
-
-  val make : ('ctx, 'a, 'args) deps -> ('ctx, [ `stopped ]) t
-
-  val start
-    :  'ctx
-    -> ('ctx, [ `stopped ]) t
-    -> (('ctx, [ `started ]) t, string) result Lwt.t
-
-  val stop
-    :  ('ctx, [ `started ]) t
-    -> (('ctx, [ `stopped ]) t, string) result Lwt.t
-end
+include Archi_intf.S with type +'a Io.t = 'a
