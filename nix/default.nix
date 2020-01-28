@@ -13,8 +13,7 @@ in
       src = lib.gitignoreSource ./..;
     } // args);
 
-  in
-  rec {
+  archiPkgs = rec {
     archi = buildArchi {
       pname = "archi";
       buildInputs = [ alcotest ];
@@ -26,10 +25,12 @@ in
       propagatedBuildInputs = [ archi lwt4 ];
       doCheck = false;
     };
-  } // (if (lib.versionOlder "4.08" ocaml.version) then {
+  };
+  in
+    archiPkgs // (if (lib.versionOlder "4.08" ocaml.version) then {
     archi-async = buildArchi {
       pname = "archi-async";
-      propagatedBuildInputs = with ocamlPackages; [ archi async ];
+      propagatedBuildInputs = with ocamlPackages; with archiPkgs; [ archi async ];
 
       doCheck = false;
     };} else {}
