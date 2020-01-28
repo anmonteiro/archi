@@ -26,7 +26,7 @@ in
       propagatedBuildInputs = [ archi lwt4 ];
       doCheck = false;
     };
-  } // (if lib.versionOlder "4.07" ocaml.version then {
+  } // (if (lib.versionOlder "4.08" ocaml.version) then {
     archi-async = buildArchi {
       pname = "archi-async";
       propagatedBuildInputs = with ocamlPackages; [ archi async ];
