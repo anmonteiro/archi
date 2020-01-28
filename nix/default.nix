@@ -15,23 +15,23 @@ in
 
   in
   rec {
-  archi = buildArchi {
-    pname = "archi";
-    buildInputs = [ alcotest ];
-    propagatedBuildInputs = [ hmap ];
-  };
+    archi = buildArchi {
+      pname = "archi";
+      buildInputs = [ alcotest ];
+      propagatedBuildInputs = [ hmap ];
+    };
 
-  archi-lwt = buildArchi {
-    pname = "archi-lwt";
-    propagatedBuildInputs = [ archi lwt4 ];
-    doCheck = false;
-  };
+    archi-lwt = buildArchi {
+      pname = "archi-lwt";
+      propagatedBuildInputs = [ archi lwt4 ];
+      doCheck = false;
+    };
+  } // (if lib.versionOlder "4.07" ocaml.version then {
+    archi-async = buildArchi {
+      pname = "archi-async";
+      propagatedBuildInputs = with ocamlPackages; [ archi async ];
 
-  archi-async = buildArchi {
-    pname = "archi-async";
-    propagatedBuildInputs = with ocamlPackages; [ archi async ];
-
-    doCheck = false;
-  };
-}
+      doCheck = false;
+    };} else {}
+  )
 
