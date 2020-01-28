@@ -1,0 +1,4 @@
+(library
+ (name archi_async)
+ (public_name archi-async)
+ (libraries archi async))

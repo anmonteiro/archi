@@ -29,10 +29,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*)
 
-module type IO = Archi_intf.IO
+module Deferred_io : Archi.IO with type +'a t = 'a Async.Deferred.t = struct
+  include Async.Deferred
 
-module type S = Archi_intf.S
+  let map f x = map ~f x
 
-module Make (Io : IO) : S with type +'a Io.t = 'a Io.t
+  let bind x f = bind ~f x
+end
 
-include Archi_intf.S with type +'a Io.t = 'a
+include Archi.Make (Deferred_io)

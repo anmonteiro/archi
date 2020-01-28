@@ -12,8 +12,8 @@ build: [
 depends: [
   "ocaml" {>= "4.06"}
   "dune" {>= "1.0"}
-  "hmap"
-  "alcotest" {with-test}
+  "archi"
+  "lwt"
 ]
 synopsis:
-  "A library for managing the lifecycle of stateful components in OCaml"
+  "Lwt runtime for Archi, a library for managing the lifecycle of stateful components in OCaml"

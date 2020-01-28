@@ -29,10 +29,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*)
 
-module type IO = Archi_intf.IO
+module Lwt_io : Archi.IO with type +'a t = 'a Lwt.t = Lwt
 
-module type S = Archi_intf.S
-
-module Make (Io : IO) : S with type +'a Io.t = 'a Io.t
-
-include Archi_intf.S with type +'a Io.t = 'a
+include Archi.Make (Lwt_io)

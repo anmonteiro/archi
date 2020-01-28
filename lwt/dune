@@ -1,0 +1,4 @@
+(library
+ (name archi_lwt)
+ (public_name archi-lwt)
+ (libraries archi lwt))
