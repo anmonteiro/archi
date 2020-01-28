@@ -1,21 +1,37 @@
-{ pkgs ? import ./sources.nix { inherit ocamlVersion; }, ocamlVersion ? "4_09" }:
+{ pkgs ? import ./sources.nix { inherit ocamlVersion; }
+, ocamlVersion ? "4_09"
+, doCheck ? true }:
 
 let
   inherit (pkgs) lib ocamlPackages;
 in
-  ocamlPackages.buildDunePackage {
+  with ocamlPackages;
+
+  let buildArchi = args: buildDunePackage ({
+      version = "0.0.1-dev";
+      doCheck = doCheck;
+      src = lib.gitignoreSource ./..;
+    } // args);
+
+  in
+  rec {
+  archi = buildArchi {
     pname = "archi";
-    version = "0.0.1-dev";
+    buildInputs = [ alcotest ];
+    propagatedBuildInputs = [ hmap ];
+  };
 
-    src = lib.gitignoreSource ./..;
+  archi-lwt = buildArchi {
+    pname = "archi-lwt";
+    propagatedBuildInputs = [ archi lwt4 ];
+    doCheck = false;
+  };
 
-    buildInputs = with ocamlPackages; [ alcotest ];
+  archi-async = buildArchi {
+    pname = "archi-async";
+    propagatedBuildInputs = with ocamlPackages; [ archi async ];
 
-    propagatedBuildInputs = with ocamlPackages; [
-      hmap
-      lwt4
-    ];
-
-    doCheck = true;
-  }
+    doCheck = false;
+  };
+}
 
