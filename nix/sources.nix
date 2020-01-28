@@ -2,8 +2,8 @@
 
 let
   overlays = builtins.fetchTarball {
-    url = https://github.com/anmonteiro/nix-overlays/archive/dbacb5b9.tar.gz;
-    sha256 = "1rag5zyxkak79wp66bp6zjrln8ggwvpzp4i5j34c4g37y2p10l18";
+    url = https://github.com/anmonteiro/nix-overlays/archive/f7b3735f.tar.gz;
+    sha256 = "09b5hszsp3xr5zz6mqiyac34j8f7s01r3zz0mps15lfqsmi3nmis";
   };
 
   pkgs = import <nixpkgs> {
