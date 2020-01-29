@@ -32,7 +32,11 @@
 open Archi
 
 module Database = struct
-  type db = int
+  type t = int
+
+  type ctx = unit
+
+  let name = "db"
 
   let db_ref = ref None
 
@@ -43,11 +47,17 @@ module Database = struct
 
   let stop _db = db_ref := None
 
-  let component = Component.component ~name:"db" ~start ~stop
+  let component = Component.make ~name:"db" ~start ~stop
 end
 
 module WebServer = struct
   type t = int
+
+  type ctx = unit
+
+  type args = Database.t -> (t, string) result
+
+  let name = "webserver"
 
   let server_ref = ref None
 
@@ -69,7 +79,14 @@ end
 let system =
   System.make [ "db", Database.component; "server", WebServer.component ]
 
-let test_start_stop_order () =
+let module_system =
+  let db = Component.make_m (module Database) in
+  System.make
+    [ "db", db
+    ; "server", Component.using_m (module WebServer) ~dependencies:[ db ]
+    ]
+
+let test_start_stop_order system () =
   let started = System.start () system in
   match started with
   | Ok system ->
@@ -90,6 +107,11 @@ let test_start_stop_order () =
   | Error error ->
     Alcotest.fail error
 
-let suite = [ "start / stop order", `Quick, test_start_stop_order ]
+let suite =
+  [ "start / stop order", `Quick, test_start_stop_order system
+  ; ( "start / stop order, module system"
+    , `Quick
+    , test_start_stop_order module_system )
+  ]
 
 let () = Alcotest.run "archi unit tests" [ "archi", suite ]

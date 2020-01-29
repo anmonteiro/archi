@@ -66,26 +66,30 @@ module type S = sig
 
       type args
 
-      val name : string option
+      val name : string
 
       val start : ctx -> args
 
       val stop : t -> unit Io.t
     end
 
+    module type MINIMAL = sig
+      type t
+
+      include
+        COMPONENT with type t := t and type args := (t, string) result Io.t
+    end
+
     (** Creating components *)
 
-    val component
+    val make
       :  ?name:string
       -> start:('ctx -> ('a, string) result Io.t)
       -> stop:('a -> unit Io.t)
       -> ('ctx, 'a) t
 
-    val of_module
-      :  (module COMPONENT
-            with type t = 'a
-             and type args = ('a, string) result Io.t
-             and type ctx = 'ctx)
+    val make_m
+      :  (module MINIMAL with type t = 'a and type ctx = 'ctx)
       -> ('ctx, 'a) t
 
     val using
@@ -95,10 +99,10 @@ module type S = sig
       -> dependencies:('ctx, ('a, string) result Io.t, 'args) deps
       -> ('ctx, 'a) t
 
-    val using_module
+    val using_m
       :  (module COMPONENT
-            with type args = 'args
-             and type t = 'a
+            with type t = 'a
+             and type args = 'args
              and type ctx = 'ctx)
       -> dependencies:('ctx, ('a, string) result Io.t, 'args) deps
       -> ('ctx, 'a) t
@@ -107,15 +111,15 @@ module type S = sig
   (** Systems *)
 
   module System : sig
-    type (_, _, _) deps =
-      | [] : ('ctx, 'a, 'a) deps
+    type (_, _, _) components =
+      | [] : ('ctx, 'a, 'a) components
       | ( :: ) :
-          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) deps
-          -> ('ctx, 'b, 'a -> 'c) deps
+          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) components
+          -> ('ctx, 'b, 'a -> 'c) components
 
     type ('ctx, _) t
 
-    val make : ('ctx, 'a, 'args) deps -> ('ctx, [ `stopped ]) t
+    val make : ('ctx, 'a, 'args) components -> ('ctx, [ `stopped ]) t
 
     val start
       :  'ctx

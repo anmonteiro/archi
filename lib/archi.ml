@@ -70,7 +70,7 @@ module Make (Io : IO) = struct
           }
           -> ('ctx, 'a) t
 
-    type 'ctx any_component = AnyComponent : ('ctx, _) t -> 'ctx any_component
+    type _ any_component = AnyComponent : ('ctx, _) t -> 'ctx any_component
 
     module type COMPONENT = sig
       type t
@@ -79,19 +79,26 @@ module Make (Io : IO) = struct
 
       type args
 
-      val name : string option
+      val name : string
 
       val start : ctx -> args
 
       val stop : t -> unit Io.t
     end
 
+    module type MINIMAL = sig
+      type t
+
+      include
+        COMPONENT with type t := t and type args := (t, string) result Io.t
+    end
+
     let fold_left ~f ~init dependencies =
       let rec loop
-          : type ctx a args.
-            f:('res -> ctx any_component -> 'res)
+          : type a args.
+            f:('res -> 'ctx any_component -> 'res)
             -> init:'res
-            -> (ctx, a, args) deps
+            -> ('ctx, a, args) deps
             -> 'res
         =
        fun ~f ~init deps ->
@@ -114,33 +121,27 @@ module Make (Io : IO) = struct
       =
      fun d1 d2 -> match d1 with [] -> d2 | x :: xs -> x :: concat xs d2
 
-    let component ?name ~start ~stop =
-      let hkey = Hmap.Key.create () in
-      Component { start; stop; hkey; name; dependencies = [] }
+    let make ?name ~start ~stop =
+      Component
+        { start; stop; hkey = Hmap.Key.create (); name; dependencies = [] }
 
-    let of_module
+    let make_m
         : type ctx a.
-          (module COMPONENT
-             with type t = a
-              and type args = (a, string) result Io.t
-              and type ctx = ctx)
-          -> (ctx, a) t
+          (module MINIMAL with type t = a and type ctx = ctx) -> (ctx, a) t
       =
      fun (module C) ->
-      let hkey = Hmap.Key.create () in
       Component
         { start = C.start
         ; stop = C.stop
-        ; name = C.name
-        ; hkey
+        ; name = Some C.name
+        ; hkey = Hmap.Key.create ()
         ; dependencies = []
         }
 
     let using ?name ~start ~stop ~dependencies =
-      let hkey = Hmap.Key.create () in
-      Component { start; stop; name; hkey; dependencies }
+      Component { start; stop; name; hkey = Hmap.Key.create (); dependencies }
 
-    let using_module
+    let using_m
         : type ctx a args.
           (module COMPONENT
              with type t = a
@@ -150,23 +151,27 @@ module Make (Io : IO) = struct
           -> (ctx, a) t
       =
      fun (module C) ~dependencies ->
-      let hkey = Hmap.Key.create () in
       Component
-        { start = C.start; stop = C.stop; name = C.name; hkey; dependencies }
+        { start = C.start
+        ; stop = C.stop
+        ; name = Some C.name
+        ; hkey = Hmap.Key.create ()
+        ; dependencies
+        }
   end
 
   (** System *)
 
   module System = struct
-    type (_, _, _) deps =
-      | [] : ('ctx, 'a, 'a) deps
+    type (_, _, _) components =
+      | [] : ('ctx, 'a, 'a) components
       | ( :: ) :
-          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) deps
-          -> ('ctx, 'b, 'a -> 'c) deps
+          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) components
+          -> ('ctx, 'b, 'a -> 'c) components
 
     type (_, _) t =
       | System :
-          { components : ('ctx, 'a, 'args) deps
+          { components : ('ctx, 'a, 'args) components
           ; mutable values : Hmap.t
           }
           -> ('ctx, 'state) t
@@ -176,7 +181,7 @@ module Make (Io : IO) = struct
           : type a args.
             f:('res -> string * 'ctx Component.any_component -> 'res)
             -> init:'res
-            -> ('ctx, a, args) deps
+            -> ('ctx, a, args) components
             -> 'res
         =
        fun ~f ~init deps ->
