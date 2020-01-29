@@ -86,7 +86,7 @@ module Make (Io : IO) = struct
       val stop : t -> unit Io.t
     end
 
-    module type MINIMAL = sig
+    module type SIMPLE_COMPONENT = sig
       type t
 
       include
@@ -127,7 +127,8 @@ module Make (Io : IO) = struct
 
     let make_m
         : type ctx a.
-          (module MINIMAL with type t = a and type ctx = ctx) -> (ctx, a) t
+          (module SIMPLE_COMPONENT with type t = a and type ctx = ctx)
+          -> (ctx, a) t
       =
      fun (module C) ->
       Component

@@ -73,7 +73,7 @@ module type S = sig
       val stop : t -> unit Io.t
     end
 
-    module type MINIMAL = sig
+    module type SIMPLE_COMPONENT = sig
       type t
 
       include
@@ -89,7 +89,7 @@ module type S = sig
       -> ('ctx, 'a) t
 
     val make_m
-      :  (module MINIMAL with type t = 'a and type ctx = 'ctx)
+      :  (module SIMPLE_COMPONENT with type t = 'a and type ctx = 'ctx)
       -> ('ctx, 'a) t
 
     val using
