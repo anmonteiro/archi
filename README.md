@@ -31,7 +31,7 @@ module Database = struct
 
   let stop _db = Lwt_io.eprintlf "Stopped DB.%!"
 
-  let component = Component.component ~name:"db" ~start ~stop
+  let component = Component.make ~name:"db" ~start ~stop
 end
 
 module WebServer = struct
