@@ -47,7 +47,7 @@ module Database = struct
 
   let stop _db = db_ref := None
 
-  let component = Component.make ~name:"db" ~start ~stop
+  let component = Component.make ~start ~stop
 end
 
 module WebServer = struct
@@ -69,11 +69,7 @@ module WebServer = struct
   let stop _server = server_ref := None
 
   let component =
-    Component.using
-      ~name:"webserver"
-      ~start
-      ~stop
-      ~dependencies:[ Database.component ]
+    Component.using ~start ~stop ~dependencies:[ Database.component ]
 end
 
 let system =
@@ -107,11 +103,46 @@ let test_start_stop_order system () =
   | Error error ->
     Alcotest.fail error
 
+let test_duplicates_start_once () =
+  let starts = ref 0 in
+  let db =
+    Component.make
+      ~start:(fun () ->
+        incr starts;
+        Ok ())
+      ~stop:(fun () -> ())
+  in
+  let mk_server () =
+    Component.using
+      ~start:(fun () (() as _db) ->
+        incr starts;
+        Ok ())
+      ~stop:(fun () -> ())
+      ~dependencies:[ db ]
+  in
+  let system =
+    (* 3 dbs which should start only once. 2 servers which start once.
+     * `!starts` should be 3. *)
+    System.make
+      [ "db", db
+      ; "server", mk_server ()
+      ; "same db", db
+      ; "depends on db again", mk_server ()
+      ]
+  in
+  let started = System.start () system in
+  match started with
+  | Ok _started_system ->
+    Alcotest.(check int) "3 components started" 3 !starts
+  | Error error ->
+    Alcotest.fail error
+
 let suite =
   [ "start / stop order", `Quick, test_start_stop_order system
   ; ( "start / stop order, module system"
     , `Quick
     , test_start_stop_order module_system )
+  ; "duplicates", `Quick, test_duplicates_start_once
   ]
 
 let () = Alcotest.run "archi unit tests" [ "archi", suite ]

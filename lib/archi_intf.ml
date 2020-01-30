@@ -43,21 +43,23 @@ module type S = sig
   module Io : IO
 
   module Component : sig
-    type ('ctx, 'a) t
+    type (_, _) t
 
     type (_, _, _) deps =
-      | [] : ('ctx, 'a, 'a) deps
-      | ( :: ) : ('ctx, 'a) t * ('ctx, 'b, 'c) deps -> ('ctx, 'b, 'a -> 'c) deps
+      | [] : ('ctx, 'ty, 'ty) deps
+      | ( :: ) :
+          ('ctx, 'a) t * ('ctx, 'b, 'ty) deps
+          -> ('ctx, 'a -> 'b, 'ty) deps
 
     val append
-      :  ('ctx, 'c) t
-      -> ('ctx, 'a, 'b) deps
-      -> ('ctx, 'a, 'c -> 'b) deps
+      :  ('ctx, 'a) t
+      -> ('ctx, 'b, 'ty) deps
+      -> ('ctx, 'a -> 'b, 'ty) deps
 
     val concat
-      :  ('ctx, 'b, 'c) deps
+      :  ('ctx, 'a, 'ty) deps
+      -> ('ctx, 'ty, 'b) deps
       -> ('ctx, 'a, 'b) deps
-      -> ('ctx, 'a, 'c) deps
 
     module type COMPONENT = sig
       type t
@@ -65,8 +67,6 @@ module type S = sig
       type ctx
 
       type args
-
-      val name : string
 
       val start : ctx -> args
 
@@ -83,8 +83,7 @@ module type S = sig
     (** Creating components *)
 
     val make
-      :  ?name:string
-      -> start:('ctx -> ('a, string) result Io.t)
+      :  start:('ctx -> ('a, string) result Io.t)
       -> stop:('a -> unit Io.t)
       -> ('ctx, 'a) t
 
@@ -93,10 +92,9 @@ module type S = sig
       -> ('ctx, 'a) t
 
     val using
-      :  ?name:string
-      -> start:('ctx -> 'args)
+      :  start:('ctx -> 'args)
       -> stop:('a -> unit Io.t)
-      -> dependencies:('ctx, ('a, string) result Io.t, 'args) deps
+      -> dependencies:('ctx, 'args, ('a, string) result Io.t) deps
       -> ('ctx, 'a) t
 
     val using_m
@@ -104,7 +102,7 @@ module type S = sig
             with type t = 'a
              and type args = 'args
              and type ctx = 'ctx)
-      -> dependencies:('ctx, ('a, string) result Io.t, 'args) deps
+      -> dependencies:('ctx, 'args, ('a, string) result Io.t) deps
       -> ('ctx, 'a) t
   end
 
@@ -112,10 +110,10 @@ module type S = sig
 
   module System : sig
     type (_, _, _) components =
-      | [] : ('ctx, 'a, 'a) components
+      | [] : ('ctx, 'ty, 'ty) components
       | ( :: ) :
-          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) components
-          -> ('ctx, 'b, 'a -> 'c) components
+          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'ty) components
+          -> ('ctx, 'a -> 'b, 'ty) components
 
     type ('ctx, _) t
 
@@ -129,5 +127,12 @@ module type S = sig
     val stop
       :  ('ctx, [ `started ]) t
       -> (('ctx, [ `stopped ]) t, string) result Io.t
+
+    (** Utilities *)
+
+    val append
+      :  string * ('ctx, 'a) Component.t
+      -> ('ctx, [ `stopped ]) t
+      -> ('ctx, [ `stopped ]) t
   end
 end
