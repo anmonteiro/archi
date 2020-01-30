@@ -57,18 +57,19 @@ module Make (Io : IO) = struct
 
   module Component = struct
     type (_, _, _) deps =
-      | [] : ('ctx, 'a, 'a) deps
-      | ( :: ) : ('ctx, 'a) t * ('ctx, 'b, 'c) deps -> ('ctx, 'b, 'a -> 'c) deps
+      | [] : ('ctx, 'ty, 'ty) deps
+      | ( :: ) :
+          ('ctx, 'a) t * ('ctx, 'b, 'ty) deps
+          -> ('ctx, 'a -> 'b, 'ty) deps
 
     and (_, _) t =
       | Component :
-          { dependencies : ('ctx, ('a, string) result Io.t, 'args) deps
+          { dependencies : ('ctx, 'args, ('ty, string) result Io.t) deps
           ; start : 'ctx -> 'args
-          ; stop : 'a -> unit Io.t
-          ; hkey : 'a Hmap.key
-          ; name : string option
+          ; stop : 'ty -> unit Io.t
+          ; hkey : 'ty Hmap.key
           }
-          -> ('ctx, 'a) t
+          -> ('ctx, 'ty) t
 
     type _ any_component = AnyComponent : ('ctx, _) t -> 'ctx any_component
 
@@ -78,8 +79,6 @@ module Make (Io : IO) = struct
       type ctx
 
       type args
-
-      val name : string
 
       val start : ctx -> args
 
@@ -95,10 +94,10 @@ module Make (Io : IO) = struct
 
     let fold_left ~f ~init dependencies =
       let rec loop
-          : type a args.
+          : type ty args.
             f:('res -> 'ctx any_component -> 'res)
             -> init:'res
-            -> ('ctx, a, args) deps
+            -> ('ctx, args, ty) deps
             -> 'res
         =
        fun ~f ~init deps ->
@@ -111,19 +110,19 @@ module Make (Io : IO) = struct
       loop ~f ~init dependencies
 
     let append
-        : type a b c. ('ctx, c) t -> ('ctx, a, b) deps -> ('ctx, a, c -> b) deps
+        : type ty a b.
+          ('ctx, a) t -> ('ctx, b, ty) deps -> ('ctx, a -> b, ty) deps
       =
      fun c deps -> match deps with [] -> [ c ] | xs -> c :: xs
 
     let rec concat
-        : type a b c.
-          ('ctx, b, c) deps -> ('ctx, a, b) deps -> ('ctx, a, c) deps
+        : type ty a b.
+          ('ctx, a, ty) deps -> ('ctx, ty, b) deps -> ('ctx, a, b) deps
       =
      fun d1 d2 -> match d1 with [] -> d2 | x :: xs -> x :: concat xs d2
 
-    let make ?name ~start ~stop =
-      Component
-        { start; stop; hkey = Hmap.Key.create (); name; dependencies = [] }
+    let make ~start ~stop =
+      Component { start; stop; hkey = Hmap.Key.create (); dependencies = [] }
 
     let make_m
         : type ctx a.
@@ -134,28 +133,26 @@ module Make (Io : IO) = struct
       Component
         { start = C.start
         ; stop = C.stop
-        ; name = Some C.name
         ; hkey = Hmap.Key.create ()
         ; dependencies = []
         }
 
-    let using ?name ~start ~stop ~dependencies =
-      Component { start; stop; name; hkey = Hmap.Key.create (); dependencies }
+    let using ~start ~stop ~dependencies =
+      Component { start; stop; hkey = Hmap.Key.create (); dependencies }
 
     let using_m
-        : type ctx a args.
+        : type ctx ty args.
           (module COMPONENT
-             with type t = a
+             with type t = ty
               and type args = args
               and type ctx = ctx)
-          -> dependencies:(ctx, (a, string) result Io.t, args) deps
-          -> (ctx, a) t
+          -> dependencies:(ctx, args, (ty, string) result Io.t) deps
+          -> (ctx, ty) t
       =
      fun (module C) ~dependencies ->
       Component
         { start = C.start
         ; stop = C.stop
-        ; name = Some C.name
         ; hkey = Hmap.Key.create ()
         ; dependencies
         }
@@ -165,24 +162,24 @@ module Make (Io : IO) = struct
 
   module System = struct
     type (_, _, _) components =
-      | [] : ('ctx, 'a, 'a) components
+      | [] : ('ctx, 'ty, 'ty) components
       | ( :: ) :
-          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'c) components
-          -> ('ctx, 'b, 'a -> 'c) components
+          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'ty) components
+          -> ('ctx, 'a -> 'b, 'ty) components
 
     type (_, _) t =
       | System :
-          { components : ('ctx, 'a, 'args) components
+          { components : ('ctx, 'args, 'ty) components
           ; mutable values : Hmap.t
           }
-          -> ('ctx, 'state) t
+          -> ('ctx, _) t
 
     let fold_left ~f ~init (System { components; _ }) =
       let rec loop
-          : type a args.
+          : type ty args.
             f:('res -> string * 'ctx Component.any_component -> 'res)
             -> init:'res
-            -> ('ctx, a, args) components
+            -> ('ctx, args, ty) components
             -> 'res
         =
        fun ~f ~init deps ->
@@ -200,11 +197,11 @@ module Make (Io : IO) = struct
     let make components = System { components; values = Hmap.empty }
 
     let rec start_component
-        : type a args.
+        : type ty args.
           ('ctx, [ `stopped ]) t
-          -> dependencies:('ctx, (a, string) result Io.t, args) Component.deps
+          -> dependencies:('ctx, args, (ty, string) result Io.t) Component.deps
           -> f:args
-          -> (a, string) result Io.t
+          -> (ty, string) result Io.t
       =
      fun (System { values; _ } as system) ~dependencies ~f ->
       let open Component in
@@ -236,6 +233,10 @@ module Make (Io : IO) = struct
       let ordered =
         Toposort.toposort
           ~order
+          ~equal:
+            (fun (Component.AnyComponent (Component.Component { hkey = k1; _ }))
+                 (Component.AnyComponent (Component.Component { hkey = k2; _ })) ->
+            Hmap.Key.equal (Hmap.Key.hide_type k1) (Hmap.Key.hide_type k2))
           ~edges:
             (fun _graph
                  (Component.AnyComponent
@@ -278,6 +279,17 @@ module Make (Io : IO) = struct
           Ok (System { values; components }))
         system
       >|= cast
+
+    let append c (System ({ components; _ } as system)) =
+      let cons
+          : type ty a b.
+            string * ('ctx, a) Component.t
+            -> ('ctx, b, ty) components
+            -> ('ctx, a -> b, ty) components
+        =
+       fun c deps -> match deps with [] -> [ c ] | xs -> c :: xs
+      in
+      System { system with components = cons c components }
   end
 end
 

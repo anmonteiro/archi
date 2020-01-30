@@ -39,11 +39,11 @@ type order =
 
 (* Adapted from:
  * https://stackoverflow.com/questions/4653914/topological-sort-in-ocaml *)
-let dfs graph ~edges visited start_node =
+let dfs ~equal graph ~edges visited start_node =
   let rec explore path visited node =
-    if List.mem node path then
+    if List.exists (fun node' -> equal node node') path then
       raise CycleFound
-    else if List.mem node visited then
+    else if List.exists (fun node' -> equal node node') visited then
       visited
     else
       let new_path = node :: path in
@@ -53,9 +53,12 @@ let dfs graph ~edges visited start_node =
   in
   explore [] visited start_node
 
-let toposort ?(order = `Dependency) ~edges graph =
+let toposort ?(order = `Dependency) ~equal ~edges graph =
   let sorted =
-    List.fold_left (fun visited node -> dfs ~edges graph visited node) [] graph
+    List.fold_left
+      (fun visited node -> dfs ~equal ~edges graph visited node)
+      []
+      graph
   in
   (* `dfs` sorts in reverse by default (easier with `::`) *)
   match order with `Dependency -> List.rev sorted | `Reverse -> sorted
