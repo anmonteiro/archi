@@ -326,15 +326,15 @@ module Make (Io : IO) = struct
         Toposort.toposort
           ~order
           ~equal:Component.equal
-          ~edges:(fun _graph (AnyComponent c) ->
+          ~edges:(fun _graph (Component.AnyComponent c) ->
             match c with
-            | Component { dependencies; _ } ->
+            | Component.Component { dependencies; _ } ->
               Component.fold_left
                 ~f:(fun (acc : 'ctx Component.any_component list) itm ->
                   itm :: acc)
                 ~init:[]
                 dependencies
-            | System system' ->
+            | Component.System system' ->
               let components = to_any_component_list system' in
               List.fold_left
                 (fun (acc : 'ctx Component.any_component list) itm ->
@@ -368,12 +368,12 @@ module Make (Io : IO) = struct
       let open Io.Result.Infix in
       let f (System ({ values; _ } as s) as system) (Component.AnyComponent c) =
         match c with
-        | Component { start; dependencies; hkey; _ } ->
+        | Component.Component { start; dependencies; hkey; _ } ->
           let f = start ctx in
           start_component system ~dependencies ~f >|= fun started_component ->
           let values = Hmap.add hkey started_component values in
           System { s with values }
-        | System { components; hkey; lift; _ } ->
+        | Component.System { components; hkey; lift; _ } ->
           (* A system is assumed to have all its components already started
            * because of topological sorting.
            *
@@ -391,15 +391,15 @@ module Make (Io : IO) = struct
       let open Io.Result.Infix in
       update_system
         ~order:`Reverse
-        ~f:(fun (System ({ values; _ } as s)) (AnyComponent c) ->
+        ~f:(fun (System ({ values; _ } as s)) (Component.AnyComponent c) ->
           match c with
-          | Component { stop; hkey; _ } ->
+          | Component.Component { stop; hkey; _ } ->
             let open Io.Infix in
             let v = Hmap.get hkey values in
             stop v >|= fun () ->
             let values = Hmap.rem hkey values in
             Ok (System { s with values })
-          | System _ ->
+          | Component.System _ ->
             Io.Result.return (System s))
         system
       >|= cast
