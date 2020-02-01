@@ -55,23 +55,100 @@ module Make (Io : IO) = struct
     end
   end
 
+  module Types = struct
+    module rec Component : sig
+      type (_, _, _) deps =
+        | [] : ('ctx, 'ty, 'ty) deps
+        | ( :: ) :
+            ('ctx, 'a) t * ('ctx, 'b, 'ty) deps
+            -> ('ctx, 'a -> 'b, 'ty) deps
+
+      and (_, _) t =
+        | Component :
+            { dependencies : ('ctx, 'args, ('ty, string) result Io.t) deps
+            ; start : 'ctx -> 'args
+            ; stop : 'ty -> unit Io.t
+            ; hkey : 'ty Hmap.key
+            }
+            -> ('ctx, 'ty) t
+        | System : ('ctx, 'args, 'ty) System.system -> ('ctx, 'ty) t
+
+      type _ any_component = AnyComponent : ('ctx, _) t -> 'ctx any_component
+    end =
+      Component
+
+    and System : sig
+      type (_, _, _) components =
+        | [] : ('ctx, 'ty, 'ty) components
+        | ( :: ) :
+            (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'ty) components
+            -> ('ctx, 'a -> 'b, 'ty) components
+
+      type ('ctx, 'args, 'ty) system =
+        { components : ('ctx, 'args, 'ty) components
+        ; hkey : 'ty Hmap.key
+        ; lift : 'args
+        }
+
+      type (_, _, _) t =
+        | System :
+            { system : ('ctx, 'args, 'ty) system
+            ; values : Hmap.t
+            }
+            -> ('ctx, 'ty, _) t
+
+      val to_any_component_list
+        :  ('ctx, 'args, 'ty) system
+        -> 'ctx Component.any_component list
+    end = struct
+      type (_, _, _) components =
+        | [] : ('ctx, 'ty, 'ty) components
+        | ( :: ) :
+            (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'ty) components
+            -> ('ctx, 'a -> 'b, 'ty) components
+
+      type ('ctx, 'args, 'ty) system =
+        { components : ('ctx, 'args, 'ty) components
+        ; hkey : 'ty Hmap.key
+        ; lift : 'args
+        }
+
+      type (_, _, _) t =
+        | System :
+            { system : ('ctx, 'args, 'ty) system
+            ; values : Hmap.t
+            }
+            -> ('ctx, 'ty, _) t
+
+      let fold_left ~f ~init { components; _ } =
+        let rec loop
+            : type ty args.
+              f:('res -> string * 'ctx Component.any_component -> 'res)
+              -> init:'res
+              -> ('ctx, args, ty) components
+              -> 'res
+          =
+         fun ~f ~init deps ->
+          match deps with
+          | [] ->
+            init
+          | (lbl, x) :: xs ->
+            loop ~f ~init:(f init (lbl, AnyComponent x)) xs
+        in
+        loop ~f ~init components
+
+      let to_any_component_list system =
+        fold_left
+          ~f:(fun (acc : 'ctx Component.any_component list) (_lbl, itm) ->
+            itm :: acc)
+          ~init:[]
+          system
+    end
+  end
+
   module Component = struct
-    type (_, _, _) deps =
-      | [] : ('ctx, 'ty, 'ty) deps
-      | ( :: ) :
-          ('ctx, 'a) t * ('ctx, 'b, 'ty) deps
-          -> ('ctx, 'a -> 'b, 'ty) deps
-
-    and (_, _) t =
-      | Component :
-          { dependencies : ('ctx, 'args, ('ty, string) result Io.t) deps
-          ; start : 'ctx -> 'args
-          ; stop : 'ty -> unit Io.t
-          ; hkey : 'ty Hmap.key
-          }
-          -> ('ctx, 'ty) t
-
-    type _ any_component = AnyComponent : ('ctx, _) t -> 'ctx any_component
+    include Types.Component
+    module System = Types.System
 
     module type COMPONENT = sig
       type t
@@ -121,7 +198,13 @@ module Make (Io : IO) = struct
       =
      fun d1 d2 -> match d1 with [] -> d2 | x :: xs -> x :: concat xs d2
 
-    let make ~start ~stop =
+    let make
+        : type ctx ty.
+          start:(ctx -> (ty, string) result Io.t)
+          -> stop:(ty -> unit Io.t)
+          -> (ctx, ty) t
+      =
+     fun ~start ~stop ->
       Component { start; stop; hkey = Hmap.Key.create (); dependencies = [] }
 
     let make_m
@@ -137,7 +220,14 @@ module Make (Io : IO) = struct
         ; dependencies = []
         }
 
-    let using ~start ~stop ~dependencies =
+    let using
+        : type ctx ty args.
+          start:(ctx -> args)
+          -> stop:(ty -> unit Io.t)
+          -> dependencies:(ctx, args, (ty, string) result Io.t) deps
+          -> (ctx, ty) t
+      =
+     fun ~start ~stop ~dependencies ->
       Component { start; stop; hkey = Hmap.Key.create (); dependencies }
 
     let using_m
@@ -156,49 +246,64 @@ module Make (Io : IO) = struct
         ; hkey = Hmap.Key.create ()
         ; dependencies
         }
+
+    let of_system (System.System { system; _ }) = System system
+
+    let rec equal : 'ctx any_component -> 'ctx any_component -> bool =
+     fun (AnyComponent c1) (AnyComponent c2) ->
+      match c1, c2 with
+      | System _, Component _ | Component _, System _ ->
+        false
+      | Component { hkey = k1; _ }, Component { hkey = k2; _ } ->
+        Hmap.Key.equal (Hmap.Key.hide_type k1) (Hmap.Key.hide_type k2)
+      | System s1, System s2 ->
+        List.for_all2
+          (fun x y -> equal x y)
+          (System.to_any_component_list s1)
+          (System.to_any_component_list s2)
   end
 
   (** System *)
 
   module System = struct
-    type (_, _, _) components =
-      | [] : ('ctx, 'ty, 'ty) components
-      | ( :: ) :
-          (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'ty) components
-          -> ('ctx, 'a -> 'b, 'ty) components
-
-    type (_, _) t =
-      | System :
-          { components : ('ctx, 'args, 'ty) components
-          ; mutable values : Hmap.t
-          }
-          -> ('ctx, _) t
-
-    let fold_left ~f ~init (System { components; _ }) =
-      let rec loop
-          : type ty args.
-            f:('res -> string * 'ctx Component.any_component -> 'res)
-            -> init:'res
-            -> ('ctx, args, ty) components
-            -> 'res
-        =
-       fun ~f ~init deps ->
-        match deps with
-        | [] ->
-          init
-        | (lbl, x) :: xs ->
-          loop ~f ~init:(f init (lbl, AnyComponent x)) xs
-      in
-      loop ~f ~init components
+    include Types.System
 
     (* Only here for switching the `started` / `stopped` phantom types. *)
-    let cast (System { components; values }) = System { components; values }
+    let cast (System { system; values }) = System { system; values }
 
-    let make components = System { components; values = Hmap.empty }
+    let rec lift_ignore : type ctx args. (ctx, args, unit) components -> args =
+     fun components ->
+      match components with _ :: xs -> fun _ -> lift_ignore xs | [] -> ()
 
+    let make_reusable
+        : type args ty.
+          lift:args -> ('ctx, args, ty) components -> ('ctx, ty, [ `stopped ]) t
+      =
+     fun ~lift components ->
+      System
+        { system = { components; hkey = Hmap.Key.create (); lift }
+        ; values = Hmap.empty
+        }
+
+    let make components =
+      make_reusable ~lift:(lift_ignore components) components
+
+    let rec safe_fold
+        ~f ~init (sorted_components : 'ctx Component.any_component list)
+      =
+      match sorted_components with
+      | [] ->
+        Io.Result.return init
+      | x :: xs ->
+        let open Io.Result.Infix in
+        f init x >>= fun acc -> safe_fold ~init:acc ~f xs
+
+    (* This function assumes dependencies have been started. The usage of
+     * `Hmap.get`, even though it throws, is considered safe given that we have
+     * topologically sorted the component's dependencies. *)
     let rec start_component
         : type ty args.
-          ('ctx, [ `stopped ]) t
+          ('ctx, _, [ `stopped ]) t
           -> dependencies:('ctx, args, (ty, string) result Io.t) Component.deps
           -> f:args
           -> (ty, string) result Io.t
@@ -211,85 +316,93 @@ module Make (Io : IO) = struct
       | Component { hkey; _ } :: xs ->
         let started_dep = Hmap.get hkey values in
         start_component system ~dependencies:xs ~f:(f started_dep)
+      | System { hkey; _ } :: xs ->
+        let lifted_system = Hmap.get hkey values in
+        start_component system ~dependencies:xs ~f:(f lifted_system)
 
-    let rec safe_fold
-        ~f ~init (sorted_components : 'ctx Component.any_component list)
-      =
-      match sorted_components with
-      | [] ->
-        Io.Result.return init
-      | x :: xs ->
-        let open Io.Result.Infix in
-        f init x >>= fun acc -> safe_fold ~init:acc ~f xs
-
-    let update_system ~order system ~f =
-      let all_components =
-        fold_left
-          ~f:(fun (acc : 'ctx Component.any_component list) (_lbl, itm) ->
-            itm :: acc)
-          ~init:[]
-          system
-      in
+    let update_system ~f ~order (System { system; _ } as t) =
+      let all_components = to_any_component_list system in
       let ordered =
         Toposort.toposort
           ~order
-          ~equal:
-            (fun (Component.AnyComponent (Component.Component { hkey = k1; _ }))
-                 (Component.AnyComponent (Component.Component { hkey = k2; _ })) ->
-            Hmap.Key.equal (Hmap.Key.hide_type k1) (Hmap.Key.hide_type k2))
-          ~edges:
-            (fun _graph
-                 (Component.AnyComponent
-                   (Component.Component { dependencies; _ })) ->
-            Component.fold_left
-              ~f:(fun (acc : 'ctx Component.any_component list) itm ->
-                itm :: acc)
-              ~init:[]
-              dependencies)
+          ~equal:Component.equal
+          ~edges:(fun _graph (AnyComponent c) ->
+            match c with
+            | Component { dependencies; _ } ->
+              Component.fold_left
+                ~f:(fun (acc : 'ctx Component.any_component list) itm ->
+                  itm :: acc)
+                ~init:[]
+                dependencies
+            | System system' ->
+              let components = to_any_component_list system' in
+              List.fold_left
+                (fun (acc : 'ctx Component.any_component list) itm ->
+                  itm :: acc)
+                []
+                components)
           all_components
       in
-      safe_fold ~init:system ~f ordered
+      safe_fold ~init:t ~f ordered
+
+    let rec lift_system
+        : type ty args.
+          ('ctx, _, _) t
+          -> components:('ctx, args, ty) components
+          -> f:args
+          -> ty
+      =
+     fun (System { values; _ } as system) ~components ~f ->
+      let open Component in
+      match components with
+      | [] ->
+        f
+      | (_lbl, Component { hkey; _ }) :: xs ->
+        let lifted_arg = Hmap.get hkey values in
+        lift_system system ~components:xs ~f:(f lifted_arg)
+      | (_lbl, System { hkey; _ }) :: xs ->
+        let lifted_arg = Hmap.get hkey values in
+        lift_system system ~components:xs ~f:(f lifted_arg)
 
     let start ctx system =
       let open Io.Result.Infix in
-      update_system
-        ~order:`Dependency
-        ~f:
-          (fun (System { values; components; _ } as system)
-               (Component.AnyComponent
-                 (Component.Component { start; dependencies; hkey; _ })) ->
+      let f (System ({ values; _ } as s) as system) (Component.AnyComponent c) =
+        match c with
+        | Component { start; dependencies; hkey; _ } ->
           let f = start ctx in
           start_component system ~dependencies ~f >|= fun started_component ->
           let values = Hmap.add hkey started_component values in
-          System { values; components })
-        system
-      >|= cast
+          System { s with values }
+        | System { components; hkey; lift; _ } ->
+          (* A system is assumed to have all its components already started
+           * because of topological sorting.
+           *
+           * For systems we need to do 2 things:
+           *   1. Lift the system to a value;
+           *   2. Pass that value to `f`, the component `resolver`. *)
+          let f = lift in
+          let lifted_system = lift_system system ~components ~f in
+          let values = Hmap.add hkey lifted_system values in
+          Io.Result.return (System { s with values })
+      in
+      update_system ~order:`Dependency ~f system >|= cast
 
     let stop system =
       let open Io.Result.Infix in
       update_system
         ~order:`Reverse
-        ~f:
-          (fun (System { values; components; _ })
-               (Component.AnyComponent (Component.Component { stop; hkey; _ })) ->
-          let open Io.Infix in
-          let v = Hmap.get hkey values in
-          stop v >|= fun () ->
-          let values = Hmap.rem hkey values in
-          Ok (System { values; components }))
+        ~f:(fun (System ({ values; _ } as s)) (AnyComponent c) ->
+          match c with
+          | Component { stop; hkey; _ } ->
+            let open Io.Infix in
+            let v = Hmap.get hkey values in
+            stop v >|= fun () ->
+            let values = Hmap.rem hkey values in
+            Ok (System { s with values })
+          | System _ ->
+            Io.Result.return (System s))
         system
       >|= cast
-
-    let append c (System ({ components; _ } as system)) =
-      let cons
-          : type ty a b.
-            string * ('ctx, a) Component.t
-            -> ('ctx, b, ty) components
-            -> ('ctx, a -> b, ty) components
-        =
-       fun c deps -> match deps with [] -> [ c ] | xs -> c :: xs
-      in
-      System { system with components = cons c components }
   end
 end
 

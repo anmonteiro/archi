@@ -42,7 +42,7 @@ end
 module type S = sig
   module Io : IO
 
-  module Component : sig
+  module rec Component : sig
     type (_, _) t
 
     type (_, _, _) deps =
@@ -104,35 +104,35 @@ module type S = sig
              and type ctx = 'ctx)
       -> dependencies:('ctx, 'args, ('a, string) result Io.t) deps
       -> ('ctx, 'a) t
+
+    val of_system : ('a, 'b, 'c) System.t -> ('a, 'b) t
   end
 
   (** Systems *)
 
-  module System : sig
+  and System : sig
     type (_, _, _) components =
       | [] : ('ctx, 'ty, 'ty) components
       | ( :: ) :
           (string * ('ctx, 'a) Component.t) * ('ctx, 'b, 'ty) components
           -> ('ctx, 'a -> 'b, 'ty) components
 
-    type ('ctx, _) t
+    type ('ctx, _, _) t
 
-    val make : ('ctx, 'a, 'args) components -> ('ctx, [ `stopped ]) t
+    val make : ('ctx, 'args, unit) components -> ('ctx, unit, [ `stopped ]) t
+
+    val make_reusable
+      :  lift:'args
+      -> ('ctx, 'args, 'ty) components
+      -> ('ctx, 'ty, [ `stopped ]) t
 
     val start
       :  'ctx
-      -> ('ctx, [ `stopped ]) t
-      -> (('ctx, [ `started ]) t, string) result Io.t
+      -> ('ctx, 'ty, [ `stopped ]) t
+      -> (('ctx, 'ty, [ `started ]) t, string) result Io.t
 
     val stop
-      :  ('ctx, [ `started ]) t
-      -> (('ctx, [ `stopped ]) t, string) result Io.t
-
-    (** Utilities *)
-
-    val append
-      :  string * ('ctx, 'a) Component.t
-      -> ('ctx, [ `stopped ]) t
-      -> ('ctx, [ `stopped ]) t
+      :  ('ctx, 'ty, [ `started ]) t
+      -> (('ctx, 'ty, [ `stopped ]) t, string) result Io.t
   end
 end
