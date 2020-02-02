@@ -137,12 +137,56 @@ let test_duplicates_start_once () =
   | Error error ->
     Alcotest.fail error
 
+let module_system_reusable =
+  let db = Component.make_m (module Database) in
+  System.make_reusable
+    ~lift:(fun db server -> db, server)
+    [ "db", db
+    ; "server", Component.using_m (module WebServer) ~dependencies:[ db ]
+    ]
+
+let using_system_ref, system_using_reusable_system =
+  let ref = ref None in
+  ( ref
+  , System.make
+      [ ( "server"
+        , Component.using
+            ~start:(fun () (db, server) ->
+              let res = server + db in
+              ref := Some res;
+              Ok res)
+            ~stop:(fun _ -> ())
+            ~dependencies:[ Component.of_system module_system_reusable ] )
+      ] )
+
+let test_start_stop_order_system_deps () =
+  let started = System.start () system_using_reusable_system in
+  match started with
+  | Ok system ->
+    Alcotest.(check (option int) "DB started" (Some 42) !Database.db_ref);
+    (match !WebServer.server_ref with
+    | Some (db, server) ->
+      Alcotest.(check int "Server started" 3000 server);
+      Alcotest.(check int "DB started first" 42 db)
+    | None ->
+      Alcotest.fail "Server should have started");
+    ignore @@ System.stop system;
+    (match !WebServer.server_ref with
+    | Some _ ->
+      Alcotest.fail "Server should have stopped"
+    | None ->
+      Alcotest.(check pass "Server stopped" true true));
+    Alcotest.(check (option int) "DB stopped" None !Database.db_ref)
+  | Error error ->
+    Alcotest.fail error
+
 let suite =
   [ "start / stop order", `Quick, test_start_stop_order system
   ; ( "start / stop order, module system"
     , `Quick
     , test_start_stop_order module_system )
   ; "duplicates", `Quick, test_duplicates_start_once
+  ; "system depending on system", `Quick, test_start_stop_order_system_deps
   ]
 
 let () = Alcotest.run "archi unit tests" [ "archi", suite ]
