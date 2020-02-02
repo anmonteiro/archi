@@ -269,7 +269,7 @@ module Make (Io : IO) = struct
     include Types.System
 
     (* Only here for switching the `started` / `stopped` phantom types. *)
-    let cast (System { system; values }) = System { system; values }
+    external cast : ('ctx, 'ty, _) t -> ('ctx, 'ty, _) t = "%identity"
 
     let rec lift_ignore : type ctx args. (ctx, args, unit) components -> args =
      fun components ->
