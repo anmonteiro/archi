@@ -180,6 +180,16 @@ let test_start_stop_order_system_deps () =
   | Error error ->
     Alcotest.fail error
 
+let test_get () =
+  let started = System.start () module_system_reusable in
+  match started with
+  | Ok system ->
+    let db, server = System.get system in
+    Alcotest.(check int "DB" 42 db);
+    Alcotest.(check int "Server" 3000 server)
+  | Error error ->
+    Alcotest.fail error
+
 let suite =
   [ "start / stop order", `Quick, test_start_stop_order system
   ; ( "start / stop order, module system"
@@ -187,6 +197,7 @@ let suite =
     , test_start_stop_order module_system )
   ; "duplicates", `Quick, test_duplicates_start_once
   ; "system depending on system", `Quick, test_start_stop_order_system_deps
+  ; "get resulting value", `Quick, test_get
   ]
 
 let () = Alcotest.run "archi unit tests" [ "archi", suite ]
