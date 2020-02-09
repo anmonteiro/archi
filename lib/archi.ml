@@ -403,6 +403,9 @@ module Make (Io : IO) = struct
             Io.Result.return (System s))
         system
       >|= cast
+
+    let get (System { system = { components; lift; _ }; _ } as t) =
+      lift_system t ~components ~f:lift
   end
 end
 

@@ -134,5 +134,7 @@ module type S = sig
     val stop
       :  ('ctx, 'ty, [ `started ]) t
       -> (('ctx, 'ty, [ `stopped ]) t, string) result Io.t
+
+    val get : ('ctx, 'ty, [ `started ]) t -> 'ty
   end
 end
