@@ -17,3 +17,8 @@ depends: [
 ]
 synopsis:
   "A library for managing the lifecycle of stateful components in OCaml"
+description:
+"""
+Archi is an OCaml library for managing the lifecycle of stateful components and
+their dependencies.
+"""

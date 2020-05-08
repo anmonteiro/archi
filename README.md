@@ -5,7 +5,9 @@ their dependencies.
 
 ## Installation
 
-Archi is currently unreleased.
+```shell
+$ opam install archi # choose your preferred runtime: archi-lwt archi-async
+```
 
 # Usage & Examples
 
