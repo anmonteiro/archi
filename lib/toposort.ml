@@ -29,7 +29,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *---------------------------------------------------------------------------*)
 
-(* TODO: check if we can catch this exception. *)
 exception CycleFound
 
 type order =
