@@ -65,7 +65,8 @@ module Make (Io : IO) = struct
 
       and (_, _) t =
         | Component :
-            { dependencies : ('ctx, 'args, ('ty, string) result Io.t) deps
+            { dependencies :
+                ('ctx, 'args, ('ty, [ `Msg of string ]) result Io.t) deps
             ; start : 'ctx -> 'args
             ; stop : 'ty -> unit Io.t
             ; hkey : 'ty Hmap.key
@@ -166,7 +167,9 @@ module Make (Io : IO) = struct
       type t
 
       include
-        COMPONENT with type t := t and type args := (t, string) result Io.t
+        COMPONENT
+          with type t := t
+           and type args := (t, [ `Msg of string ]) result Io.t
     end
 
     let fold_left ~f ~init dependencies =
@@ -200,7 +203,7 @@ module Make (Io : IO) = struct
 
     let make
         : type ctx ty.
-          start:(ctx -> (ty, string) result Io.t)
+          start:(ctx -> (ty, [ `Msg of string ]) result Io.t)
           -> stop:(ty -> unit Io.t)
           -> (ctx, ty) t
       =
@@ -230,7 +233,7 @@ module Make (Io : IO) = struct
         : type ctx ty args.
           start:(ctx -> args)
           -> stop:(ty -> unit Io.t)
-          -> dependencies:(ctx, args, (ty, string) result Io.t) deps
+          -> dependencies:(ctx, args, (ty, [ `Msg of string ]) result Io.t) deps
           -> (ctx, ty) t
       =
      fun ~start ~stop ~dependencies ->
@@ -242,7 +245,7 @@ module Make (Io : IO) = struct
              with type t = ty
               and type args = args
               and type ctx = ctx)
-          -> dependencies:(ctx, args, (ty, string) result Io.t) deps
+          -> dependencies:(ctx, args, (ty, [ `Msg of string ]) result Io.t) deps
           -> (ctx, ty) t
       =
      fun (module C) ~dependencies ->
@@ -310,9 +313,10 @@ module Make (Io : IO) = struct
     let rec start_component
         : type ty args.
           ('ctx, _, [ `stopped ]) t
-          -> dependencies:('ctx, args, (ty, string) result Io.t) Component.deps
+          -> dependencies:
+               ('ctx, args, (ty, [ `Msg of string ]) result Io.t) Component.deps
           -> f:args
-          -> (ty, string) result Io.t
+          -> (ty, [ `Msg of string ]) result Io.t
       =
      fun (System { values; _ } as system) ~dependencies ~f ->
       let open Component in
@@ -328,28 +332,32 @@ module Make (Io : IO) = struct
 
     let update_system ~f ~order (System { system; _ } as t) =
       let all_components = to_any_component_list system in
-      let ordered =
-        Toposort.toposort
-          ~order
-          ~equal:Component.equal
-          ~edges:(fun _graph (Component.AnyComponent c) ->
-            match c with
-            | Component.Component { dependencies; _ } ->
-              Component.fold_left
-                ~f:(fun (acc : 'ctx Component.any_component list) itm ->
-                  itm :: acc)
-                ~init:[]
-                dependencies
-            | Component.System system' ->
-              let components = to_any_component_list system' in
-              List.fold_left
-                (fun (acc : 'ctx Component.any_component list) itm ->
-                  itm :: acc)
-                []
-                components)
-          all_components
-      in
-      safe_fold ~init:t ~f ordered
+      try
+        let ordered =
+          Toposort.toposort
+            ~order
+            ~equal:Component.equal
+            ~edges:(fun _graph (Component.AnyComponent c) ->
+              match c with
+              | Component.Component { dependencies; _ } ->
+                Component.fold_left
+                  ~f:(fun (acc : 'ctx Component.any_component list) itm ->
+                    itm :: acc)
+                  ~init:[]
+                  dependencies
+              | Component.System system' ->
+                let components = to_any_component_list system' in
+                List.fold_left
+                  (fun (acc : 'ctx Component.any_component list) itm ->
+                    itm :: acc)
+                  []
+                  components)
+            all_components
+        in
+        safe_fold ~init:t ~f ordered
+      with
+      | Toposort.CycleFound ->
+        Io.return (Error `Cycle_found)
 
     let rec lift_system
         : type ty args.
@@ -371,14 +379,17 @@ module Make (Io : IO) = struct
         lift_system system ~components:xs ~f:(f lifted_arg)
 
     let start ctx system =
-      let open Io.Result.Infix in
+      let open Io.Infix in
       let f (System ({ values; _ } as s) as system) (Component.AnyComponent c) =
         match c with
         | Component.Component { start; dependencies; hkey; _ } ->
           let f = start ctx in
-          start_component system ~dependencies ~f >|= fun started_component ->
-          let values = Hmap.add hkey started_component values in
-          System { s with values }
+          start_component system ~dependencies ~f >|= ( function
+          | Ok started_component ->
+            let values = Hmap.add hkey started_component values in
+            Ok (System { s with values })
+          | Error e ->
+            Error (e :> [ `Cycle_found | `Msg of string ]) )
         | Component.System { components; hkey; lift; _ } ->
           (* A system is assumed to have all its components already started
            * because of topological sorting.
@@ -391,7 +402,7 @@ module Make (Io : IO) = struct
           let values = Hmap.add hkey lifted_system values in
           Io.Result.return (System { s with values })
       in
-      update_system ~order:`Dependency ~f system >|= cast
+      Io.Result.map cast (update_system ~order:`Dependency ~f system)
 
     let stop system =
       let open Io.Result.Infix in

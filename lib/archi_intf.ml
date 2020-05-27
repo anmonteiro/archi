@@ -77,7 +77,9 @@ module type S = sig
       type t
 
       include
-        COMPONENT with type t := t and type args := (t, string) result Io.t
+        COMPONENT
+          with type t := t
+           and type args := (t, [ `Msg of string ]) result Io.t
     end
 
     (** Creating components *)
@@ -85,7 +87,7 @@ module type S = sig
     val identity : 'ty -> ('ctx, 'ty) t
 
     val make
-      :  start:('ctx -> ('a, string) result Io.t)
+      :  start:('ctx -> ('a, [ `Msg of string ]) result Io.t)
       -> stop:('a -> unit Io.t)
       -> ('ctx, 'a) t
 
@@ -96,7 +98,7 @@ module type S = sig
     val using
       :  start:('ctx -> 'args)
       -> stop:('a -> unit Io.t)
-      -> dependencies:('ctx, 'args, ('a, string) result Io.t) deps
+      -> dependencies:('ctx, 'args, ('a, [ `Msg of string ]) result Io.t) deps
       -> ('ctx, 'a) t
 
     val using_m
@@ -104,7 +106,7 @@ module type S = sig
             with type t = 'a
              and type args = 'args
              and type ctx = 'ctx)
-      -> dependencies:('ctx, 'args, ('a, string) result Io.t) deps
+      -> dependencies:('ctx, 'args, ('a, [ `Msg of string ]) result Io.t) deps
       -> ('ctx, 'a) t
 
     val of_system : ('a, 'b, 'c) System.t -> ('a, 'b) t
@@ -131,11 +133,13 @@ module type S = sig
     val start
       :  'ctx
       -> ('ctx, 'ty, [ `stopped ]) t
-      -> (('ctx, 'ty, [ `started ]) t, string) result Io.t
+      -> (('ctx, 'ty, [ `started ]) t, [ `Cycle_found | `Msg of string ]) result
+         Io.t
 
     val stop
       :  ('ctx, 'ty, [ `started ]) t
-      -> (('ctx, 'ty, [ `stopped ]) t, string) result Io.t
+      -> (('ctx, 'ty, [ `stopped ]) t, [ `Cycle_found | `Msg of string ]) result
+         Io.t
 
     val get : ('ctx, 'ty, [ `started ]) t -> 'ty
   end
