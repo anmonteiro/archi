@@ -190,6 +190,39 @@ let test_get () =
   | Error error ->
     Alcotest.fail error
 
+let test_identity () =
+  let identity_component = Component.identity "I'm the component" in
+  let system =
+    System.make_reusable
+      ~lift:(fun id -> id)
+      [ "identity component", identity_component ]
+  in
+  let started = System.start () system in
+  (match started with
+  | Ok system ->
+    let id = System.get system in
+    Alcotest.(check string "expected value" "I'm the component" id)
+  | Error error ->
+    Alcotest.fail error);
+  let v = ref "" in
+  let server =
+    Component.using
+      ~dependencies:[ identity_component ]
+      ~start:(fun () id ->
+        v := id;
+        Ok ())
+      ~stop:(fun _ -> ())
+  in
+  let system =
+    System.make [ "identity component", identity_component; "server", server ]
+  in
+  let started = System.start () system in
+  match started with
+  | Ok _system ->
+    Alcotest.(check string "expected value" "I'm the component" !v)
+  | Error error ->
+    Alcotest.fail error
+
 let suite =
   [ "start / stop order", `Quick, test_start_stop_order system
   ; ( "start / stop order, module system"
@@ -198,6 +231,7 @@ let suite =
   ; "duplicates", `Quick, test_duplicates_start_once
   ; "system depending on system", `Quick, test_start_stop_order_system_deps
   ; "get resulting value", `Quick, test_get
+  ; "test identity component", `Quick, test_identity
   ]
 
 let () = Alcotest.run "archi unit tests" [ "archi", suite ]

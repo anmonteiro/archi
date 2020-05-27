@@ -82,6 +82,8 @@ module type S = sig
 
     (** Creating components *)
 
+    val identity : 'ty -> ('ctx, 'ty) t
+
     val make
       :  start:('ctx -> ('a, string) result Io.t)
       -> stop:('a -> unit Io.t)

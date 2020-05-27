@@ -207,6 +207,12 @@ module Make (Io : IO) = struct
      fun ~start ~stop ->
       Component { start; stop; hkey = Hmap.Key.create (); dependencies = [] }
 
+    let identity : type ctx ty. ty -> (ctx, ty) t =
+     fun c ->
+      let start _ctx = Io.Result.return c in
+      let stop _c = Io.return () in
+      make ~start ~stop
+
     let make_m
         : type ctx a.
           (module SIMPLE_COMPONENT with type t = a and type ctx = ctx)
