@@ -7,22 +7,35 @@ let
 in
   with ocamlPackages;
 
-  let buildArchi = args: buildDunePackage ({
+  let
+    genSrc = { dirs, files }: lib.filterGitSource {
+      src = ./..;
+      inherit dirs;
+      files = files ++ [ "dune-project" ];
+    };
+    buildArchi = args: buildDunePackage ({
       version = "0.0.1-dev";
       doCheck = doCheck;
-      src = lib.gitignoreSource ./..;
     } // args);
 
   archiPkgs = rec {
     archi = buildArchi {
       pname = "archi";
+      src = genSrc {
+        dirs = [ "lib" "test" ];
+        files = [ "archi.opam" ];
+      };
       buildInputs = [ alcotest ];
       propagatedBuildInputs = [ hmap ];
     };
 
     archi-lwt = buildArchi {
       pname = "archi-lwt";
-      propagatedBuildInputs = [ archi lwt4 ];
+      src = genSrc {
+        dirs = [ "lwt" ];
+        files = [ "archi-lwt.opam" ];
+      };
+      propagatedBuildInputs = [ archi lwt ];
       doCheck = false;
     };
   };
@@ -30,6 +43,10 @@ in
     archiPkgs // (if (lib.versionOlder "4.08" ocaml.version) then {
     archi-async = buildArchi {
       pname = "archi-async";
+      src = genSrc {
+        dirs = [ "async" ];
+        files = [ "archi-async.opam" ];
+      };
       propagatedBuildInputs = with ocamlPackages; with archiPkgs; [ archi async ];
 
       doCheck = false;
