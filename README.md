@@ -15,7 +15,7 @@ TODO, read the [mli](./lib/archi.mli) file for now.
 
 ### Examples
 
-The design of this library is heavily inspired by the [`component`](clojure-component)
+The design of this library is heavily inspired by the [`component`][clojure-component]
 library for Clojure. The terminology is similar, and so is the API.
 
 [clojure-component]: https://github.com/stuartsierra/component
