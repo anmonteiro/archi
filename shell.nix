@@ -1,17 +1,26 @@
-{pkgs ? import ./nix/sources.nix {} }:
-
-with pkgs;
-
-let
-  archiPkgs = pkgs.recurseIntoAttrs (import ./nix { inherit pkgs; doCheck = false; });
-  archiDrvs = lib.filterAttrs (_: value: lib.isDerivation value) archiPkgs;
-in
+{ packages
+, mkShell
+, lib
+, ocamlPackages
+, cacert
+, curl
+, git
+, opam
+, release-mode ? false
+}:
 
 (mkShell {
-  inputsFrom = lib.attrValues archiDrvs;
-  buildInputs = with ocamlPackages; [ merlin ocamlformat utop ];
- }).overrideAttrs (o : {
-    propagatedBuildInputs = lib.filter
-      (drv: drv.pname == null || !(lib.any (name: name == drv.pname) (lib.attrNames archiDrvs)))
-      o.propagatedBuildInputs;
-  })
+  inputsFrom = lib.filter lib.isDerivation (lib.attrValues packages);
+  buildInputs = (with ocamlPackages; [ merlin ocamlformat utop ]) ++
+    lib.optional release-mode [
+      cacert
+      curl
+      ocamlPackages.dune-release
+      git
+      opam
+    ];
+}).overrideAttrs (o: {
+  propagatedBuildInputs = lib.filter
+    (drv: drv.pname == null || !(lib.any (name: name == drv.pname) (lib.attrNames packages)))
+    o.propagatedBuildInputs;
+})
