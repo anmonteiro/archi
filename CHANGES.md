@@ -1,4 +1,4 @@
-Unreleased
+0.2.0 2022-05-23
 --------------
 
 - archi: add `Component.identity`which creates a component whose value is its

@@ -11,7 +11,7 @@ build: [
 ]
 depends: [
   "ocaml" {>= "4.06"}
-  "dune" {>= "1.0"}
+  "dune" {>= "2.5"}
   "hmap"
   "alcotest" {with-test}
 ]
