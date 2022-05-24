@@ -1,5 +1,5 @@
 {
-  description = "H2 Nix Flake";
+  description = "Archi Nix Flake";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:anmonteiro/nix-overlays";
@@ -9,12 +9,12 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages."${system}";
+        archiPkgs = (pkgs.callPackage ./nix { inherit pkgs; });
       in
       rec {
-        packages = pkgs.callPackage ./nix { inherit pkgs; };
-        defaultPackage = packages.archi;
-        devShell = pkgs.callPackage ./shell.nix { inherit packages; };
+        packages = archiPkgs // { default = archiPkgs.archi; };
         devShells = {
+          default = pkgs.callPackage ./shell.nix { inherit packages; };
           release = pkgs.callPackage ./shell.nix {
             inherit packages;
             release-mode = true;
