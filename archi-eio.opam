@@ -1,0 +1,19 @@
+opam-version: "2.0"
+maintainer: "Antonio Monteiro <anmonteiro@gmail.com>"
+authors: [ "Antonio Monteiro <anmonteiro@gmail.com>" ]
+license: "BSD-3-clause"
+homepage: "https://github.com/anmonteiro/archi"
+bug-reports: "https://github.com/anmonteiro/archi/issues"
+dev-repo: "git+https://github.com/anmonteiro/archi.git"
+doc: "https://anmonteiro.github.io/archi/"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "5.00"}
+  "dune" {>= "2.5"}
+  "archi" {= version}
+  "eio"
+]
+synopsis:
+  "EIO runtime for Archi, a library for managing the lifecycle of stateful components in OCaml"

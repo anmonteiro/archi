@@ -1,0 +1,4 @@
+(library
+ (name archi_eio)
+ (public_name archi-eio)
+ (libraries archi eio))
