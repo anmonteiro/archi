@@ -1,26 +1,3 @@
-# archi
-
-Archi is an OCaml library for managing the lifecycle of stateful components and
-their dependencies.
-
-## Installation
-
-```shell
-$ opam install archi # choose your preferred runtime: archi-lwt archi-async
-```
-
-# Usage & Examples
-
-TODO, read the [mli](./lib/archi.mli) file for now.
-
-### Examples
-
-The design of this library is heavily inspired by the [`component`][clojure-component]
-library for Clojure. The terminology is similar, and so is the API.
-
-[clojure-component]: https://github.com/stuartsierra/component
-
-```ocaml
 open Lwt.Infix
 open Archi_lwt
 
@@ -80,11 +57,3 @@ let main () =
     exit 1
 
 let () = Lwt_main.run (main ())
-```
-
-## License & Copyright
-
-Copyright (c) 2020 António Nuno Monteiro
-
-Archi is distributed under the 3-Clause BSD License, see [LICENSE](./LICENSE).
-

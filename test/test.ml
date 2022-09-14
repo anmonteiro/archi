@@ -73,11 +73,11 @@ module WebServer = struct
 end
 
 let system =
-  System.make [ "db", Database.component; "server", WebServer.component ]
+  System.make_imperative [ "db", Database.component; "server", WebServer.component ]
 
 let module_system =
   let db = Component.make_m (module Database) in
-  System.make
+  System.make_imperative
     [ "db", db
     ; "server", Component.using_m (module WebServer) ~dependencies:[ db ]
     ]
@@ -125,7 +125,7 @@ let test_duplicates_start_once () =
   let system =
     (* 3 dbs which should start only once. 2 servers which start once.
      * `!starts` should be 3. *)
-    System.make
+    System.make_imperative
       [ "db", db
       ; "server", mk_server ()
       ; "same db", db
@@ -143,7 +143,7 @@ let test_duplicates_start_once () =
 
 let module_system_reusable =
   let db = Component.make_m (module Database) in
-  System.make_reusable
+  System.make
     ~lift:(fun db server -> db, server)
     [ "db", db
     ; "server", Component.using_m (module WebServer) ~dependencies:[ db ]
@@ -152,7 +152,7 @@ let module_system_reusable =
 let using_system_ref, system_using_reusable_system =
   let ref = ref None in
   ( ref
-  , System.make
+  , System.make_imperative
       [ ( "server"
         , Component.using
             ~start:(fun () (db, server) ->
@@ -201,7 +201,7 @@ let test_get () =
 let test_identity () =
   let identity_component = Component.identity "I'm the component" in
   let system =
-    System.make_reusable
+    System.make
       ~lift:(fun id -> id)
       [ "identity component", identity_component ]
   in
@@ -224,7 +224,7 @@ let test_identity () =
       ~stop:ignore
   in
   let system =
-    System.make [ "identity component", identity_component; "server", server ]
+    System.make_imperative [ "identity component", identity_component; "server", server ]
   in
   let started = System.start () system in
   match started with
