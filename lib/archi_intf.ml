@@ -33,9 +33,7 @@ module type IO = sig
   type +'a t
 
   val return : 'a -> 'a t
-
   val map : ('a -> 'b) -> 'a t -> 'b t
-
   val bind : 'a t -> ('a -> 'b t) -> 'b t
 end
 
@@ -63,13 +61,10 @@ module type S = sig
 
     module type COMPONENT = sig
       type t
-
       type ctx
-
       type args
 
       val start : ctx -> args
-
       val stop : t -> unit Io.t
     end
 
@@ -128,7 +123,9 @@ module type S = sig
       -> ('ctx, 'args, 'ty) components
       -> ('ctx, 'ty, [ `stopped ]) t
 
-    val make_imperative : ('ctx, 'args, unit) components -> ('ctx, unit, [ `stopped ]) t
+    val make_imperative
+      :  ('ctx, 'args, unit) components
+      -> ('ctx, unit, [ `stopped ]) t
 
     val start
       :  'ctx

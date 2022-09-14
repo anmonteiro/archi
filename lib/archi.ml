@@ -49,7 +49,6 @@ module Make (Io : IO) = struct
 
       module Infix = struct
         let ( >|= ) x f = map f x
-
         let ( >>= ) = bind
       end
     end
@@ -131,10 +130,8 @@ module Make (Io : IO) = struct
           =
          fun ~f ~init deps ->
           match deps with
-          | [] ->
-            init
-          | (lbl, x) :: xs ->
-            loop ~f ~init:(f init (lbl, AnyComponent x)) xs
+          | [] -> init
+          | (lbl, x) :: xs -> loop ~f ~init:(f init (lbl, AnyComponent x)) xs
         in
         loop ~f ~init components
 
@@ -153,13 +150,10 @@ module Make (Io : IO) = struct
 
     module type COMPONENT = sig
       type t
-
       type ctx
-
       type args
 
       val start : ctx -> args
-
       val stop : t -> unit Io.t
     end
 
@@ -182,10 +176,8 @@ module Make (Io : IO) = struct
         =
        fun ~f ~init deps ->
         match deps with
-        | [] ->
-          init
-        | x :: xs ->
-          loop ~f ~init:(f init (AnyComponent x)) xs
+        | [] -> init
+        | x :: xs -> loop ~f ~init:(f init (AnyComponent x)) xs
       in
       loop ~f ~init dependencies
 
@@ -203,7 +195,7 @@ module Make (Io : IO) = struct
 
     let make
         : type ctx ty.
-          start:(ctx -> (ty, [ `Msg of string ]) result Io.t)
+          start:(ctx -> (ty, [> `Msg of string ]) result Io.t)
           -> stop:(ty -> unit Io.t)
           -> (ctx, ty) t
       =
@@ -261,8 +253,7 @@ module Make (Io : IO) = struct
     let rec equal : 'ctx any_component -> 'ctx any_component -> bool =
      fun (AnyComponent c1) (AnyComponent c2) ->
       match c1, c2 with
-      | System _, Component _ | Component _, System _ ->
-        false
+      | System _, Component _ | Component _, System _ -> false
       | Component { hkey = k1; _ }, Component { hkey = k2; _ } ->
         Hmap.Key.equal (Hmap.Key.hide_type k1) (Hmap.Key.hide_type k2)
       | System s1, System s2 ->
@@ -298,11 +289,12 @@ module Make (Io : IO) = struct
       make ~lift:(lift_ignore components) components
 
     let rec safe_fold
-        ~f ~init (sorted_components : 'ctx Component.any_component list)
+        ~f
+        ~init
+        (sorted_components : 'ctx Component.any_component list)
       =
       match sorted_components with
-      | [] ->
-        Io.Result.return init
+      | [] -> Io.Result.return init
       | x :: xs ->
         let open Io.Result.Infix in
         f init x >>= fun acc -> safe_fold ~init:acc ~f xs
@@ -321,8 +313,7 @@ module Make (Io : IO) = struct
      fun (System { values; _ } as system) ~dependencies ~f ->
       let open Component in
       match dependencies with
-      | [] ->
-        f
+      | [] -> f
       | Component { hkey; _ } :: xs ->
         let started_dep = Hmap.get hkey values in
         start_component system ~dependencies:xs ~f:(f started_dep)
@@ -356,8 +347,7 @@ module Make (Io : IO) = struct
         in
         safe_fold ~init:t ~f ordered
       with
-      | Toposort.CycleFound ->
-        Io.return (Error `Cycle_found)
+      | Toposort.CycleFound -> Io.return (Error `Cycle_found)
 
     let rec lift_system
         : type ty args.
@@ -369,8 +359,7 @@ module Make (Io : IO) = struct
      fun (System { values; _ } as system) ~components ~f ->
       let open Component in
       match components with
-      | [] ->
-        f
+      | [] -> f
       | (_lbl, Component { hkey; _ }) :: xs ->
         let lifted_arg = Hmap.get hkey values in
         lift_system system ~components:xs ~f:(f lifted_arg)
@@ -388,8 +377,7 @@ module Make (Io : IO) = struct
           | Ok started_component ->
             let values = Hmap.add hkey started_component values in
             Ok (System { s with values })
-          | Error e ->
-            Error (e :> [ `Cycle_found | `Msg of string ]) )
+          | Error e -> Error (e :> [ `Cycle_found | `Msg of string ]) )
         | Component.System { components; hkey; lift; _ } ->
           (* A system is assumed to have all its components already started
            * because of topological sorting.
@@ -416,8 +404,7 @@ module Make (Io : IO) = struct
             stop v >|= fun () ->
             let values = Hmap.rem hkey values in
             Ok (System { s with values })
-          | Component.System _ ->
-            Io.Result.return (System s))
+          | Component.System _ -> Io.Result.return (System s))
         system
       >|= cast
 
@@ -430,9 +417,7 @@ module Sync : IO with type +'a t = 'a = struct
   type +'a t = 'a
 
   let return x = x
-
   let map f x = f x
-
   let bind x f = f x
 end
 
