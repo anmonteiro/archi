@@ -284,7 +284,7 @@ module Make (Io : IO) = struct
      fun components ->
       match components with _ :: xs -> fun _ -> lift_ignore xs | [] -> ()
 
-    let make_reusable
+    let make
         : type args ty.
           lift:args -> ('ctx, args, ty) components -> ('ctx, ty, [ `stopped ]) t
       =
@@ -294,8 +294,8 @@ module Make (Io : IO) = struct
         ; values = Hmap.empty
         }
 
-    let make components =
-      make_reusable ~lift:(lift_ignore components) components
+    let make_imperative components =
+      make ~lift:(lift_ignore components) components
 
     let rec safe_fold
         ~f ~init (sorted_components : 'ctx Component.any_component list)

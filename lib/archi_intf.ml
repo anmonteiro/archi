@@ -123,12 +123,12 @@ module type S = sig
 
     type ('ctx, _, _) t
 
-    val make : ('ctx, 'args, unit) components -> ('ctx, unit, [ `stopped ]) t
-
-    val make_reusable
+    val make
       :  lift:'args
       -> ('ctx, 'args, 'ty) components
       -> ('ctx, 'ty, [ `stopped ]) t
+
+    val make_imperative : ('ctx, 'args, unit) components -> ('ctx, unit, [ `stopped ]) t
 
     val start
       :  'ctx
