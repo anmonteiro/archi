@@ -35,8 +35,8 @@ module Make (Io : IO) = struct
   module Io = struct
     include Io
 
-    module Infix = struct
-      let ( >|= ) x f = map f x
+    module O = struct
+      let ( let+ ) x f = map f x
     end
 
     module Result = struct
@@ -47,9 +47,8 @@ module Make (Io : IO) = struct
 
       let map f x = map (function Ok x -> Ok (f x) | Error _ as err -> err) x
 
-      module Infix = struct
-        let ( >|= ) x f = map f x
-        let ( >>= ) = bind
+      module O = struct
+        let ( let* ) x f = bind x f
       end
     end
   end
@@ -97,8 +96,8 @@ module Make (Io : IO) = struct
             }
             -> ('ctx, 'ty, _) t
 
-      val to_any_component_list
-        :  ('ctx, 'args, 'ty) system
+      val to_any_component_list :
+         ('ctx, 'args, 'ty) system
         -> 'ctx Component.any_component list
     end = struct
       type (_, _, _) components =
@@ -121,12 +120,12 @@ module Make (Io : IO) = struct
             -> ('ctx, 'ty, _) t
 
       let fold_left ~f ~init { components; _ } =
-        let rec loop
-            : type ty args.
-              f:('res -> string * 'ctx Component.any_component -> 'res)
-              -> init:'res
-              -> ('ctx, args, ty) components
-              -> 'res
+        let rec loop :
+            type ty args.
+            f:('res -> string * 'ctx Component.any_component -> 'res)
+            -> init:'res
+            -> ('ctx, args, ty) components
+            -> 'res
           =
          fun ~f ~init deps ->
           match deps with
@@ -167,12 +166,12 @@ module Make (Io : IO) = struct
     end
 
     let fold_left ~f ~init dependencies =
-      let rec loop
-          : type ty args.
-            f:('res -> 'ctx any_component -> 'res)
-            -> init:'res
-            -> ('ctx, args, ty) deps
-            -> 'res
+      let rec loop :
+          type ty args.
+          f:('res -> 'ctx any_component -> 'res)
+          -> init:'res
+          -> ('ctx, args, ty) deps
+          -> 'res
         =
        fun ~f ~init deps ->
         match deps with
@@ -181,23 +180,23 @@ module Make (Io : IO) = struct
       in
       loop ~f ~init dependencies
 
-    let append
-        : type ty a b.
-          ('ctx, a) t -> ('ctx, b, ty) deps -> ('ctx, a -> b, ty) deps
+    let append :
+        type ty a b.
+        ('ctx, a) t -> ('ctx, b, ty) deps -> ('ctx, a -> b, ty) deps
       =
      fun c deps -> match deps with [] -> [ c ] | xs -> c :: xs
 
-    let rec concat
-        : type ty a b.
-          ('ctx, a, ty) deps -> ('ctx, ty, b) deps -> ('ctx, a, b) deps
+    let rec concat :
+        type ty a b.
+        ('ctx, a, ty) deps -> ('ctx, ty, b) deps -> ('ctx, a, b) deps
       =
      fun d1 d2 -> match d1 with [] -> d2 | x :: xs -> x :: concat xs d2
 
-    let make
-        : type ctx ty.
-          start:(ctx -> (ty, [> `Msg of string ]) result Io.t)
-          -> stop:(ty -> unit Io.t)
-          -> (ctx, ty) t
+    let make :
+        type ctx ty.
+        start:(ctx -> (ty, [> `Msg of string ]) result Io.t)
+        -> stop:(ty -> unit Io.t)
+        -> (ctx, ty) t
       =
      fun ~start ~stop ->
       Component { start; stop; hkey = Hmap.Key.create (); dependencies = [] }
@@ -208,10 +207,10 @@ module Make (Io : IO) = struct
       let stop _c = Io.return () in
       make ~start ~stop
 
-    let make_m
-        : type ctx a.
-          (module SIMPLE_COMPONENT with type t = a and type ctx = ctx)
-          -> (ctx, a) t
+    let make_m :
+        type ctx a.
+        (module SIMPLE_COMPONENT with type t = a and type ctx = ctx)
+        -> (ctx, a) t
       =
      fun (module C) ->
       Component
@@ -221,24 +220,24 @@ module Make (Io : IO) = struct
         ; dependencies = []
         }
 
-    let using
-        : type ctx ty args.
-          start:(ctx -> args)
-          -> stop:(ty -> unit Io.t)
-          -> dependencies:(ctx, args, (ty, [ `Msg of string ]) result Io.t) deps
-          -> (ctx, ty) t
+    let using :
+        type ctx ty args.
+        start:(ctx -> args)
+        -> stop:(ty -> unit Io.t)
+        -> dependencies:(ctx, args, (ty, [ `Msg of string ]) result Io.t) deps
+        -> (ctx, ty) t
       =
      fun ~start ~stop ~dependencies ->
       Component { start; stop; hkey = Hmap.Key.create (); dependencies }
 
-    let using_m
-        : type ctx ty args.
-          (module COMPONENT
-             with type t = ty
-              and type args = args
-              and type ctx = ctx)
-          -> dependencies:(ctx, args, (ty, [ `Msg of string ]) result Io.t) deps
-          -> (ctx, ty) t
+    let using_m :
+        type ctx ty args.
+        (module COMPONENT
+           with type t = ty
+            and type args = args
+            and type ctx = ctx)
+        -> dependencies:(ctx, args, (ty, [ `Msg of string ]) result Io.t) deps
+        -> (ctx, ty) t
       =
      fun (module C) ~dependencies ->
       Component
@@ -269,15 +268,15 @@ module Make (Io : IO) = struct
     include Types.System
 
     (* Only here for switching the `started` / `stopped` phantom types. *)
-    external cast : ('ctx, 'ty, _) t -> ('ctx, 'ty, _) t = "%identity"
+    external cast : ('ctx, 'ty, 'a) t -> ('ctx, 'ty, 'b) t = "%identity"
 
     let rec lift_ignore : type ctx args. (ctx, args, unit) components -> args =
      fun components ->
       match components with _ :: xs -> fun _ -> lift_ignore xs | [] -> ()
 
-    let make
-        : type args ty.
-          lift:args -> ('ctx, args, ty) components -> ('ctx, ty, [ `stopped ]) t
+    let make :
+        type args ty.
+        lift:args -> ('ctx, args, ty) components -> ('ctx, ty, [ `stopped ]) t
       =
      fun ~lift components ->
       System
@@ -296,19 +295,20 @@ module Make (Io : IO) = struct
       match sorted_components with
       | [] -> Io.Result.return init
       | x :: xs ->
-        let open Io.Result.Infix in
-        f init x >>= fun acc -> safe_fold ~init:acc ~f xs
+        let open Io.Result.O in
+        let* acc = f init x in
+        safe_fold ~init:acc ~f xs
 
     (* This function assumes dependencies have been started. The usage of
      * `Hmap.get`, even though it throws, is considered safe given that we have
      * topologically sorted the component's dependencies. *)
-    let rec start_component
-        : type ty args.
-          ('ctx, _, [ `stopped ]) t
-          -> dependencies:
-               ('ctx, args, (ty, [ `Msg of string ]) result Io.t) Component.deps
-          -> f:args
-          -> (ty, [ `Msg of string ]) result Io.t
+    let rec start_component :
+        type ty args.
+        ('ctx, _, [ `stopped ]) t
+        -> dependencies:
+             ('ctx, args, (ty, [ `Msg of string ]) result Io.t) Component.deps
+        -> f:args
+        -> (ty, [ `Msg of string ]) result Io.t
       =
      fun (System { values; _ } as system) ~dependencies ~f ->
       let open Component in
@@ -349,12 +349,9 @@ module Make (Io : IO) = struct
       with
       | Toposort.CycleFound -> Io.return (Error `Cycle_found)
 
-    let rec lift_system
-        : type ty args.
-          ('ctx, _, _) t
-          -> components:('ctx, args, ty) components
-          -> f:args
-          -> ty
+    let rec lift_system :
+        type ty args.
+        ('ctx, _, _) t -> components:('ctx, args, ty) components -> f:args -> ty
       =
      fun (System { values; _ } as system) ~components ~f ->
       let open Component in
@@ -368,16 +365,17 @@ module Make (Io : IO) = struct
         lift_system system ~components:xs ~f:(f lifted_arg)
 
     let start ctx system =
-      let open Io.Infix in
+      let open Io.O in
       let f (System ({ values; _ } as s) as system) (Component.AnyComponent c) =
         match c with
         | Component.Component { start; dependencies; hkey; _ } ->
           let f = start ctx in
-          start_component system ~dependencies ~f >|= ( function
+          let+ started = start_component system ~dependencies ~f in
+          (match started with
           | Ok started_component ->
             let values = Hmap.add hkey started_component values in
             Ok (System { s with values })
-          | Error e -> Error (e :> [ `Cycle_found | `Msg of string ]) )
+          | Error e -> Error (e :> [ `Cycle_found | `Msg of string ]))
         | Component.System { components; hkey; lift; _ } ->
           (* A system is assumed to have all its components already started
            * because of topological sorting.
@@ -393,20 +391,27 @@ module Make (Io : IO) = struct
       Io.Result.map cast (update_system ~order:`Dependency ~f system)
 
     let stop system =
-      let open Io.Result.Infix in
-      update_system
-        ~order:`Reverse
-        ~f:(fun (System ({ values; _ } as s)) (Component.AnyComponent c) ->
-          match c with
-          | Component.Component { stop; hkey; _ } ->
-            let open Io.Infix in
-            let v = Hmap.get hkey values in
-            stop v >|= fun () ->
-            let values = Hmap.rem hkey values in
-            Ok (System { s with values })
-          | Component.System _ -> Io.Result.return (System s))
-        system
-      >|= cast
+      let open Io.O in
+      let+ stopped =
+        update_system
+          ~order:`Reverse
+          ~f:(fun (System ({ values; _ } as s)) (Component.AnyComponent c) ->
+            match c with
+            | Component.Component { stop; hkey; _ } ->
+              let v = Hmap.get hkey values in
+              let+ () = stop v in
+              let values = Hmap.rem hkey values in
+              Ok (System { s with values })
+            | Component.System _ -> Io.Result.return (System s))
+          system
+      in
+      match stopped with
+      | Error `Cycle_found ->
+        (* If we managed to start a component, there won't have been any cycles.
+           So this case is impossible *)
+        assert false
+      | Error (`Msg s) -> Error (`Msg s)
+      | Ok stopped -> Ok (cast stopped)
 
     let get (System { system = { components; lift; _ }; _ } as t) =
       lift_system t ~components ~f:lift
