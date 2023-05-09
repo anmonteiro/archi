@@ -49,13 +49,13 @@ module type S = sig
           ('ctx, 'a) t * ('ctx, 'b, 'ty) deps
           -> ('ctx, 'a -> 'b, 'ty) deps
 
-    val append
-      :  ('ctx, 'a) t
+    val append :
+       ('ctx, 'a) t
       -> ('ctx, 'b, 'ty) deps
       -> ('ctx, 'a -> 'b, 'ty) deps
 
-    val concat
-      :  ('ctx, 'a, 'ty) deps
+    val concat :
+       ('ctx, 'a, 'ty) deps
       -> ('ctx, 'ty, 'b) deps
       -> ('ctx, 'a, 'b) deps
 
@@ -81,26 +81,26 @@ module type S = sig
 
     val identity : 'ty -> ('ctx, 'ty) t
 
-    val make
-      :  start:('ctx -> ('a, [ `Msg of string ]) result Io.t)
+    val make :
+       start:('ctx -> ('a, [ `Msg of string ]) result Io.t)
       -> stop:('a -> unit Io.t)
       -> ('ctx, 'a) t
 
-    val make_m
-      :  (module SIMPLE_COMPONENT with type t = 'a and type ctx = 'ctx)
+    val make_m :
+       (module SIMPLE_COMPONENT with type t = 'a and type ctx = 'ctx)
       -> ('ctx, 'a) t
 
-    val using
-      :  start:('ctx -> 'args)
+    val using :
+       start:('ctx -> 'args)
       -> stop:('a -> unit Io.t)
       -> dependencies:('ctx, 'args, ('a, [ `Msg of string ]) result Io.t) deps
       -> ('ctx, 'a) t
 
-    val using_m
-      :  (module COMPONENT
-            with type t = 'a
-             and type args = 'args
-             and type ctx = 'ctx)
+    val using_m :
+       (module COMPONENT
+          with type t = 'a
+           and type args = 'args
+           and type ctx = 'ctx)
       -> dependencies:('ctx, 'args, ('a, [ `Msg of string ]) result Io.t) deps
       -> ('ctx, 'a) t
 
@@ -118,25 +118,24 @@ module type S = sig
 
     type ('ctx, _, _) t
 
-    val make
-      :  lift:'args
+    val make :
+       lift:'args
       -> ('ctx, 'args, 'ty) components
       -> ('ctx, 'ty, [ `stopped ]) t
 
-    val make_imperative
-      :  ('ctx, 'args, unit) components
+    val make_imperative :
+       ('ctx, 'args, unit) components
       -> ('ctx, unit, [ `stopped ]) t
 
-    val start
-      :  'ctx
+    val start :
+       'ctx
       -> ('ctx, 'ty, [ `stopped ]) t
       -> (('ctx, 'ty, [ `started ]) t, [ `Cycle_found | `Msg of string ]) result
          Io.t
 
-    val stop
-      :  ('ctx, 'ty, [ `started ]) t
-      -> (('ctx, 'ty, [ `stopped ]) t, [ `Cycle_found | `Msg of string ]) result
-         Io.t
+    val stop :
+       ('ctx, 'ty, [ `started ]) t
+      -> (('ctx, 'ty, [ `stopped ]) t, [ `Msg of string ]) result Io.t
 
     val get : ('ctx, 'ty, [ `started ]) t -> 'ty
   end
