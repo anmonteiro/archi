@@ -30,9 +30,7 @@
  *---------------------------------------------------------------------------*)
 
 module type IO = Archi_intf.IO
-
 module type S = Archi_intf.S
 
 module Make (Io : IO) : S with type +'a Io.t = 'a Io.t
-
 include S with type +'a Io.t = 'a

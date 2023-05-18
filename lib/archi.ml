@@ -67,7 +67,7 @@ module Make (Io : IO) = struct
                 ('ctx, 'args, ('ty, [ `Msg of string ]) result Io.t) deps
             ; start : 'ctx -> 'args
             ; stop : 'ty -> unit Io.t
-            ; hkey : 'ty Ahmap.key
+            ; hkey : 'ty Hmap.key
             }
             -> ('ctx, 'ty) t
         | System : ('ctx, 'args, 'ty) System.system -> ('ctx, 'ty) t
@@ -85,14 +85,14 @@ module Make (Io : IO) = struct
 
       type ('ctx, 'args, 'ty) system =
         { components : ('ctx, 'args, 'ty) components
-        ; hkey : 'ty Ahmap.key
+        ; hkey : 'ty Hmap.key
         ; lift : 'args
         }
 
       type (_, _, _) t =
         | System :
             { system : ('ctx, 'args, 'ty) system
-            ; values : Ahmap.t
+            ; values : Hmap.t
             }
             -> ('ctx, 'ty, _) t
 
@@ -108,14 +108,14 @@ module Make (Io : IO) = struct
 
       type ('ctx, 'args, 'ty) system =
         { components : ('ctx, 'args, 'ty) components
-        ; hkey : 'ty Ahmap.key
+        ; hkey : 'ty Hmap.key
         ; lift : 'args
         }
 
       type (_, _, _) t =
         | System :
             { system : ('ctx, 'args, 'ty) system
-            ; values : Ahmap.t
+            ; values : Hmap.t
             }
             -> ('ctx, 'ty, _) t
 
@@ -199,7 +199,7 @@ module Make (Io : IO) = struct
         -> (ctx, ty) t
       =
      fun ~start ~stop ->
-      Component { start; stop; hkey = Ahmap.Key.create (); dependencies = [] }
+      Component { start; stop; hkey = Hmap.Key.create (); dependencies = [] }
 
     let identity : type ctx ty. ty -> (ctx, ty) t =
      fun c ->
@@ -216,7 +216,7 @@ module Make (Io : IO) = struct
       Component
         { start = C.start
         ; stop = C.stop
-        ; hkey = Ahmap.Key.create ()
+        ; hkey = Hmap.Key.create ()
         ; dependencies = []
         }
 
@@ -228,7 +228,7 @@ module Make (Io : IO) = struct
         -> (ctx, ty) t
       =
      fun ~start ~stop ~dependencies ->
-      Component { start; stop; hkey = Ahmap.Key.create (); dependencies }
+      Component { start; stop; hkey = Hmap.Key.create (); dependencies }
 
     let using_m :
         type ctx ty args.
@@ -243,7 +243,7 @@ module Make (Io : IO) = struct
       Component
         { start = C.start
         ; stop = C.stop
-        ; hkey = Ahmap.Key.create ()
+        ; hkey = Hmap.Key.create ()
         ; dependencies
         }
 
@@ -254,7 +254,7 @@ module Make (Io : IO) = struct
       match c1, c2 with
       | System _, Component _ | Component _, System _ -> false
       | Component { hkey = k1; _ }, Component { hkey = k2; _ } ->
-        Ahmap.Key.equal (Ahmap.Key.hide_type k1) (Ahmap.Key.hide_type k2)
+        Hmap.Key.equal (Hmap.Key.hide_type k1) (Hmap.Key.hide_type k2)
       | System s1, System s2 ->
         List.for_all2
           (fun x y -> equal x y)
@@ -280,8 +280,8 @@ module Make (Io : IO) = struct
       =
      fun ~lift components ->
       System
-        { system = { components; hkey = Ahmap.Key.create (); lift }
-        ; values = Ahmap.empty
+        { system = { components; hkey = Hmap.Key.create (); lift }
+        ; values = Hmap.empty
         }
 
     let make_imperative components =
@@ -300,7 +300,7 @@ module Make (Io : IO) = struct
         safe_fold ~init:acc ~f xs
 
     (* This function assumes dependencies have been started. The usage of
-     * `Ahmap.get`, even though it throws, is considered safe given that we have
+     * `Hmap.get`, even though it throws, is considered safe given that we have
      * topologically sorted the component's dependencies. *)
     let rec start_component :
         type ty args.
@@ -315,10 +315,10 @@ module Make (Io : IO) = struct
       match dependencies with
       | [] -> f
       | Component { hkey; _ } :: xs ->
-        let started_dep = Ahmap.get hkey values in
+        let started_dep = Hmap.get hkey values in
         start_component system ~dependencies:xs ~f:(f started_dep)
       | System { hkey; _ } :: xs ->
-        let lifted_system = Ahmap.get hkey values in
+        let lifted_system = Hmap.get hkey values in
         start_component system ~dependencies:xs ~f:(f lifted_system)
 
     let update_system ~f ~order (System { system; _ } as t) =
@@ -358,10 +358,10 @@ module Make (Io : IO) = struct
       match components with
       | [] -> f
       | (_lbl, Component { hkey; _ }) :: xs ->
-        let lifted_arg = Ahmap.get hkey values in
+        let lifted_arg = Hmap.get hkey values in
         lift_system system ~components:xs ~f:(f lifted_arg)
       | (_lbl, System { hkey; _ }) :: xs ->
-        let lifted_arg = Ahmap.get hkey values in
+        let lifted_arg = Hmap.get hkey values in
         lift_system system ~components:xs ~f:(f lifted_arg)
 
     let start ctx system =
@@ -373,7 +373,7 @@ module Make (Io : IO) = struct
           let+ started = start_component system ~dependencies ~f in
           (match started with
           | Ok started_component ->
-            let values = Ahmap.add hkey started_component values in
+            let values = Hmap.add hkey started_component values in
             Ok (System { s with values })
           | Error e -> Error (e :> [ `Cycle_found | `Msg of string ]))
         | Component.System { components; hkey; lift; _ } ->
@@ -385,7 +385,7 @@ module Make (Io : IO) = struct
            *   2. Pass that value to `f`, the component `resolver`. *)
           let f = lift in
           let lifted_system = lift_system system ~components ~f in
-          let values = Ahmap.add hkey lifted_system values in
+          let values = Hmap.add hkey lifted_system values in
           Io.Result.return (System { s with values })
       in
       Io.Result.map cast (update_system ~order:`Dependency ~f system)
@@ -398,9 +398,9 @@ module Make (Io : IO) = struct
           ~f:(fun (System ({ values; _ } as s)) (Component.AnyComponent c) ->
             match c with
             | Component.Component { stop; hkey; _ } ->
-              let v = Ahmap.get hkey values in
+              let v = Hmap.get hkey values in
               let+ () = stop v in
-              let values = Ahmap.rem hkey values in
+              let values = Hmap.rem hkey values in
               Ok (System { s with values })
             | Component.System _ -> Io.Result.return (System s))
           system

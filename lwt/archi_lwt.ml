@@ -30,5 +30,4 @@
  *---------------------------------------------------------------------------*)
 
 module Lwt_io : Archi.IO with type +'a t = 'a Lwt.t = Lwt
-
 include Archi.Make (Lwt_io)

@@ -40,10 +40,10 @@ type order =
  * https://stackoverflow.com/questions/4653914/topological-sort-in-ocaml *)
 let dfs ~equal graph ~edges visited start_node =
   let rec explore path visited node =
-    if List.exists (fun node' -> equal node node') path then
-      raise CycleFound
-    else if List.exists (fun node' -> equal node node') visited then
-      visited
+    if List.exists (fun node' -> equal node node') path
+    then raise CycleFound
+    else if List.exists (fun node' -> equal node node') visited
+    then visited
     else
       let new_path = node :: path in
       let edges = edges graph node in
