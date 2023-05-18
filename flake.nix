@@ -9,7 +9,9 @@
   outputs = { self, nixpkgs, nix-filter, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages."${system}";
+        pkgs = nixpkgs.legacyPackages."${system}".extend (self: super: {
+          ocamlPackages = super.ocaml-ng.ocamlPackages_5_0;
+        });
         packages = pkgs.callPackage ./nix { nix-filter = nix-filter.lib; };
       in
       {
