@@ -35,7 +35,7 @@ module Database = struct
   type t = int
   type ctx = unit
 
-  let name = "db"
+  let[@warning "-32"] name = "db"
   let db_ref = ref None
 
   let start () =
@@ -52,7 +52,7 @@ module WebServer = struct
   type ctx = unit
   type args = Database.t -> (t, [ `Msg of string ]) result
 
-  let name = "webserver"
+  let[@warning "-32"] name = "webserver"
   let server_ref = ref None
 
   let start () db : (t, [ `Msg of string ]) result =
@@ -136,7 +136,7 @@ let module_system_reusable =
     ; "server", Component.using_m (module WebServer) ~dependencies:[ db ]
     ]
 
-let using_system_ref, system_using_reusable_system =
+let _using_system_ref, system_using_reusable_system =
   let ref = ref None in
   ( ref
   , System.make_imperative
