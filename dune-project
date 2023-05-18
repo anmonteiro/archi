@@ -1,4 +1,6 @@
-(lang dune 2.5)
+(lang dune 3.8)
+
+(using melange 0.1)
 
 (name archi)
 
@@ -57,3 +59,13 @@
    (>= "4.13.0"))
   archi
   eio))
+
+(package
+ (name archi-js)
+ (synopsis
+  "Melange runtime for Archi, a library for managing the lifecycle of stateful components in OCaml")
+ (depends
+  (ocaml
+   (>= "4.13.0"))
+  archi
+  melange))
