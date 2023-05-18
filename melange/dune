@@ -1,0 +1,6 @@
+(copy_files# ../lib/*.ml{,i})
+
+(library
+ (public_name archi-js)
+ (name archi_js)
+ (modes melange))

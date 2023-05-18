@@ -47,4 +47,11 @@ rec {
 
     doCheck = false;
   };
+
+  archi-js = buildArchi {
+    pname = "archi-js";
+    src = genSrc [ "lib" "melange" "vendor" "archi-js.opam" ];
+    nativeBuildInputs = [ melange ];
+    doCheck = false;
+  };
 }
