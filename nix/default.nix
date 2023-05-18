@@ -21,9 +21,8 @@ in
 rec {
   archi = buildArchi {
     pname = "archi";
-    src = genSrc [ "archi.opam" "lib" "test" ];
+    src = genSrc [ "archi.opam" "lib" "test" "vendor" ];
     buildInputs = [ alcotest ];
-    propagatedBuildInputs = [ hmap ];
   };
 
   archi-lwt = buildArchi {
@@ -37,6 +36,14 @@ rec {
     pname = "archi-async";
     src = genSrc [ "async" "archi-async.opam" ];
     propagatedBuildInputs = with ocamlPackages; [ archi async ];
+
+    doCheck = false;
+  };
+
+  archi-eio = buildArchi {
+    pname = "archi-eio";
+    src = genSrc [ "eio" "archi-eio.opam" ];
+    propagatedBuildInputs = with ocamlPackages; [ archi eio ];
 
     doCheck = false;
   };

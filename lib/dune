@@ -1,4 +1,5 @@
+(copy_files ../vendor/hmap/*.ml{,i})
+
 (library
  (name archi)
- (public_name archi)
- (libraries hmap))
+ (public_name archi))

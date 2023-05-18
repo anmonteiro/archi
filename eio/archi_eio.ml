@@ -35,10 +35,8 @@ module Lwt_io : Archi.IO with type +'a t = 'a Promise.t = struct
   type +'a t = 'a Promise.t
 
   let return : 'a -> 'a t = Promise.create_resolved
-
   let map : ('a -> 'b) -> 'a t -> 'b t = fun f t -> return (f (Promise.await t))
-
   let bind : 'a t -> ('a -> 'b t) -> 'b t = fun t f -> f (Promise.await t)
-  end
+end
 
 include Archi.Make (Lwt_io)

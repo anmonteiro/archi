@@ -33,11 +33,9 @@ open Archi
 
 module Database = struct
   type t = int
-
   type ctx = unit
 
-  let name = "db"
-
+  let[@warning "-32"] name = "db"
   let db_ref = ref None
 
   let start () =
@@ -46,19 +44,15 @@ module Database = struct
     Ok res
 
   let stop _db = db_ref := None
-
   let component = Component.make ~start ~stop
 end
 
 module WebServer = struct
   type t = int
-
   type ctx = unit
-
   type args = Database.t -> (t, [ `Msg of string ]) result
 
-  let name = "webserver"
-
+  let[@warning "-32"] name = "webserver"
   let server_ref = ref None
 
   let start () db : (t, [ `Msg of string ]) result =
@@ -73,7 +67,8 @@ module WebServer = struct
 end
 
 let system =
-  System.make_imperative [ "db", Database.component; "server", WebServer.component ]
+  System.make_imperative
+    [ "db", Database.component; "server", WebServer.component ]
 
 let module_system =
   let db = Component.make_m (module Database) in
@@ -91,19 +86,14 @@ let test_start_stop_order system () =
     | Some (db, server) ->
       Alcotest.(check int "Server started" 3000 server);
       Alcotest.(check int "DB started first" 42 db)
-    | None ->
-      Alcotest.fail "Server should have started");
+    | None -> Alcotest.fail "Server should have started");
     ignore @@ System.stop system;
     (match !WebServer.server_ref with
-    | Some _ ->
-      Alcotest.fail "Server should have stopped"
-    | None ->
-      Alcotest.(check pass "Server stopped" true true));
+    | Some _ -> Alcotest.fail "Server should have stopped"
+    | None -> Alcotest.(check pass "Server stopped" true true));
     Alcotest.(check (option int) "DB stopped" None !Database.db_ref)
-  | Error `Cycle_found ->
-    Alcotest.fail "cycle"
-  | Error (`Msg error) ->
-    Alcotest.fail error
+  | Error `Cycle_found -> Alcotest.fail "cycle"
+  | Error (`Msg error) -> Alcotest.fail error
 
 let test_duplicates_start_once () =
   let starts = ref 0 in
@@ -134,12 +124,9 @@ let test_duplicates_start_once () =
   in
   let started = System.start () system in
   match started with
-  | Ok _started_system ->
-    Alcotest.(check int) "3 components started" 3 !starts
-  | Error `Cycle_found ->
-    Alcotest.fail "cycle"
-  | Error (`Msg error) ->
-    Alcotest.fail error
+  | Ok _started_system -> Alcotest.(check int) "3 components started" 3 !starts
+  | Error `Cycle_found -> Alcotest.fail "cycle"
+  | Error (`Msg error) -> Alcotest.fail error
 
 let module_system_reusable =
   let db = Component.make_m (module Database) in
@@ -149,7 +136,7 @@ let module_system_reusable =
     ; "server", Component.using_m (module WebServer) ~dependencies:[ db ]
     ]
 
-let using_system_ref, system_using_reusable_system =
+let _using_system_ref, system_using_reusable_system =
   let ref = ref None in
   ( ref
   , System.make_imperative
@@ -172,19 +159,14 @@ let test_start_stop_order_system_deps () =
     | Some (db, server) ->
       Alcotest.(check int "Server started" 3000 server);
       Alcotest.(check int "DB started first" 42 db)
-    | None ->
-      Alcotest.fail "Server should have started");
+    | None -> Alcotest.fail "Server should have started");
     ignore @@ System.stop system;
     (match !WebServer.server_ref with
-    | Some _ ->
-      Alcotest.fail "Server should have stopped"
-    | None ->
-      Alcotest.(check pass "Server stopped" true true));
+    | Some _ -> Alcotest.fail "Server should have stopped"
+    | None -> Alcotest.(check pass "Server stopped" true true));
     Alcotest.(check (option int) "DB stopped" None !Database.db_ref)
-  | Error `Cycle_found ->
-    Alcotest.fail "cycle"
-  | Error (`Msg error) ->
-    Alcotest.fail error
+  | Error `Cycle_found -> Alcotest.fail "cycle"
+  | Error (`Msg error) -> Alcotest.fail error
 
 let test_get () =
   let started = System.start () module_system_reusable in
@@ -193,10 +175,8 @@ let test_get () =
     let db, server = System.get system in
     Alcotest.(check int "DB" 42 db);
     Alcotest.(check int "Server" 3000 server)
-  | Error `Cycle_found ->
-    Alcotest.fail "cycle"
-  | Error (`Msg error) ->
-    Alcotest.fail error
+  | Error `Cycle_found -> Alcotest.fail "cycle"
+  | Error (`Msg error) -> Alcotest.fail error
 
 let test_identity () =
   let identity_component = Component.identity "I'm the component" in
@@ -210,10 +190,8 @@ let test_identity () =
   | Ok system ->
     let id = System.get system in
     Alcotest.(check string "expected value" "I'm the component" id)
-  | Error `Cycle_found ->
-    Alcotest.fail "cycle"
-  | Error (`Msg error) ->
-    Alcotest.fail error);
+  | Error `Cycle_found -> Alcotest.fail "cycle"
+  | Error (`Msg error) -> Alcotest.fail error);
   let v = ref "" in
   let server =
     Component.using
@@ -224,16 +202,15 @@ let test_identity () =
       ~stop:ignore
   in
   let system =
-    System.make_imperative [ "identity component", identity_component; "server", server ]
+    System.make_imperative
+      [ "identity component", identity_component; "server", server ]
   in
   let started = System.start () system in
   match started with
   | Ok _system ->
     Alcotest.(check string "expected value" "I'm the component" !v)
-  | Error `Cycle_found ->
-    Alcotest.fail "cycle"
-  | Error (`Msg error) ->
-    Alcotest.fail error
+  | Error `Cycle_found -> Alcotest.fail "cycle"
+  | Error (`Msg error) -> Alcotest.fail error
 
 let suite =
   [ "start / stop order", `Quick, test_start_stop_order system

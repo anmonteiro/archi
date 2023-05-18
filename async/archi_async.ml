@@ -33,7 +33,6 @@ module Deferred_io : Archi.IO with type +'a t = 'a Async.Deferred.t = struct
   include Async.Deferred
 
   let map f x = map ~f x
-
   let bind x f = bind ~f x
 end
 
