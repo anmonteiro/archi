@@ -23,7 +23,6 @@ rec {
     pname = "archi";
     src = genSrc [ "archi.opam" "lib" "test" ];
     buildInputs = [ alcotest ];
-    propagatedBuildInputs = [ hmap ];
   };
 
   archi-lwt = buildArchi {

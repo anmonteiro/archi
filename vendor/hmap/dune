@@ -1,0 +1,3 @@
+(library
+ (name ahmap)
+ (public_name archi.ahmap))
